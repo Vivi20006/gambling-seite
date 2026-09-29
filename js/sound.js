@@ -186,6 +186,29 @@
       noise({ t: 0.02, dur: 0.3, gain: 0.2, type: 'highpass', f: 5000 });
       tone({ f: 110, to: 45, dur: 0.35, gain: 0.4 });
     },
+    // --- cards & chips ---
+    card() {
+      noise({ dur: 0.09, gain: 0.2, type: 'bandpass', f: 3200, to: 1400, q: 0.9, a: 0.004 });
+      noise({ t: 0.08, dur: 0.03, gain: 0.14, f: 900 });
+    },
+    flip() {
+      noise({ dur: 0.05, gain: 0.16, type: 'highpass', f: 2500, a: 0.002 });
+      tone({ f: 900, to: 500, dur: 0.05, gain: 0.04 });
+    },
+    chip() {
+      if (!throttle('chip', 40)) return;
+      const f = 2800 + Math.random() * 800;
+      noise({ dur: 0.035, gain: 0.24, type: 'bandpass', f, q: 3 });
+      tone({ f: f * 0.7, to: f * 0.55, type: 'triangle', dur: 0.05, gain: 0.05 });
+      noise({ t: 0.045, dur: 0.03, gain: 0.12, type: 'bandpass', f: f * 0.9, q: 3 });
+    },
+    shuffle(dur = 1.1) {
+      let t = 0;
+      while (t < dur) {
+        noise({ t, dur: 0.02, gain: 0.07 + Math.random() * 0.06, type: 'bandpass', f: 2500 + Math.random() * 1500, q: 1.5 });
+        t += 0.012 + Math.random() * 0.012;
+      }
+    },
     // --- slot ---
     plop(c = 0) {
       if (!throttle('plop', 30)) return;
