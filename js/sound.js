@@ -186,6 +186,36 @@
       noise({ t: 0.02, dur: 0.3, gain: 0.2, type: 'highpass', f: 5000 });
       tone({ f: 110, to: 45, dur: 0.35, gain: 0.4 });
     },
+    // --- slot ---
+    plop(c = 0) {
+      if (!throttle('plop', 30)) return;
+      tone({ f: 260 + c * 30, to: 120, dur: 0.1, gain: 0.11 });
+      noise({ dur: 0.05, gain: 0.07, f: 900 });
+    },
+    pop() {
+      tone({ f: 520, to: 1500, dur: 0.09, gain: 0.1 });
+      tone({ f: 780, to: 2000, t: 0.05, dur: 0.08, gain: 0.07 });
+      noise({ dur: 0.06, gain: 0.1, type: 'bandpass', f: 2500, q: 2 });
+    },
+    tumble() { noise({ dur: 0.25, gain: 0.07, type: 'bandpass', f: 1800, to: 400, q: 1 }); },
+    scatter(n = 1) {
+      const root = 76 + Math.min(n, 6) * 2;
+      [0, 4, 7, 12].forEach((iv, i) => tone({ f: note(root + iv), type: 'triangle', t: i * 0.04, dur: 0.4, gain: 0.07 }));
+    },
+    tease(dur = 0.7) {
+      tone({ f: 220, to: 880, type: 'sawtooth', dur, gain: 0.03, filter: 1500, a: dur * 0.7 });
+      noise({ dur, gain: 0.05, type: 'bandpass', f: 400, to: 3000, q: 2, a: dur * 0.7 });
+    },
+    multi() {
+      tone({ f: 90, to: 50, dur: 0.3, gain: 0.35 });
+      [84, 88, 91, 96].forEach((n, i) => tone({ f: note(n), t: 0.02 + i * 0.03, dur: 0.35, gain: 0.06 }));
+      noise({ dur: 0.15, gain: 0.12, type: 'highpass', f: 5000 });
+    },
+    fanfare() {
+      [60, 64, 67, 72].forEach((n, i) => tone({ f: note(n + 12), type: 'sawtooth', t: i * 0.12, dur: 0.25, gain: 0.05, filter: 3000 }));
+      [72, 76, 79, 84].forEach((n) => tone({ f: note(n), type: 'triangle', t: 0.5, dur: 1.2, gain: 0.06, a: 0.03 }));
+      S.coins(10);
+    },
     spinTick() {
       if (!throttle('spin', 18)) return;
       tone({ f: 1400, type: 'triangle', dur: 0.03, gain: 0.05 });

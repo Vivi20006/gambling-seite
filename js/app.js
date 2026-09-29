@@ -5,6 +5,7 @@
 
   /* decorative card art per game (CSS + inline SVG, no external assets) */
   const ART = {
+    slots: '<span class="art-float art-candy a">🍭</span><span class="art-float slow art-candy b">🍬</span><span class="art-float art-candy c">💖</span><span class="art-candy d">🍩</span><span class="art-orb">25×</span>',
     mines: `<span class="art-float art-bomb">${Nova.art.bomb}</span><span class="art-gem-sm">${Nova.art.gem}</span><span class="art-tiles"></span>`,
     coinflip: '<span class="art-float art-coin a"></span><span class="art-float slow art-coin b"></span>',
     tower: '<span class="art-tower"><i></i><i></i><i></i><i></i><i></i><i></i></span>',
@@ -14,6 +15,7 @@
     upgrader: '<span class="art-float art-upg">' + Nova.icon('chevrons-up', 84) + '</span>',
   };
   const BLURB = {
+    slots: 'A real 6×5 tumbling slot: match 8+ sweets anywhere, watch wins pop and new candy rain down. Land 4 lollipops for free spins with multiplier orbs up to 100×.',
     mines: 'Reveal tiles, avoid the mines, cash out before your luck runs out. Every gem raises the multiplier.',
     coinflip: 'Call heads or tails and flip. Win and you double your bet, lose and your stake is gone.',
     tower: 'Climb floor by floor, picking the safe tile each time. Multipliers stack — cash out anytime.',
@@ -22,7 +24,7 @@
     dice: 'Drag your win zone, roll, and see how high you can go. Smaller zone, bigger payout.',
     upgrader: 'Stake a few tokens for a shot at a much bigger item. Pick your odds and spin the ring.',
   };
-  const ORDER = ['mines', 'coinflip', 'tower', 'chicken', 'plinko', 'dice', 'upgrader'];
+  const ORDER = ['slots', 'mines', 'coinflip', 'tower', 'chicken', 'plinko', 'dice', 'upgrader'];
 
   /* topbar */
   document.getElementById('brandMark').innerHTML = Nova.logo();
@@ -59,7 +61,7 @@
   });
 
   /* soft UI sounds for every control (game actions play their own) */
-  const CLICKY = '.bet-step, .bet-quick, .btn-ghost, .btn-pill, .icon-btn:not(#soundBtn), .topnav a, .back-link, .game-card, .linklike';
+  const CLICKY = '.bet-step, .bet-quick, .toggle-btn, .buy-btn, .btn-ghost, .btn-pill, .icon-btn:not(#soundBtn), .topnav a, .back-link, .game-card, .linklike';
   const SELECTY = '.seg-btn, .side-btn, .mode-btn, .mode-wide, .item, .preset';
   document.addEventListener('click', (e) => {
     const el = e.target.closest(SELECTY + ',' + CLICKY);
