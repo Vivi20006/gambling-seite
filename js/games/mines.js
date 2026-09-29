@@ -10,6 +10,7 @@
     for (let i = 0; i < gems; i++) m *= (SIZE - i) / (SIZE - mines - i);
     return m;
   }
+  const dist = (a, b) => Math.abs((a % 5) - (b % 5)) + Math.abs(Math.floor(a / 5) - Math.floor(b / 5));
 
   Nova.register({
     id: 'mines',
@@ -26,12 +27,15 @@
       let revealed = new Set();
       let count = 3;
       let stake = 0;
-      let ended = false;
+      let gen = 0; // bumps every game so stale reveal timers do nothing
+      const timers = [];
+      const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+      shell.cleanup(() => timers.forEach(clearTimeout));
 
       /* stage */
       const minePill = Nova.ui.pill('');
       const gemPill = Nova.ui.pill('');
-      const multPill = h('span', { class: 'pill mono' }, '1.00×');
+      const multPill = h('span', { class: 'pill mono mult-pill' }, '1.00×');
       const board = h('div', { class: 'mines-board' });
       const status = h('p', { class: 'stage-status' }, 'Set your bet and mine count, then start a game.');
       const tiles = [];
@@ -55,14 +59,14 @@
       });
       const startBtn = h('button', { class: 'btn-primary', type: 'button' });
       const cashBtn = h('button', { class: 'btn-primary cash', type: 'button', hidden: true });
-      const next = h('p', { class: 'muted small center', hidden: true });
-      const info = h('p', { class: 'hint' }, 'More mines = bigger multiplier per safe tile, but higher risk. Cash out anytime after your first safe reveal — bust and your stake is gone.');
+      const next = h('p', { class: 'next-hint', hidden: true });
 
       shell.controls.append(
         h('h3', { class: 'panel-title' }, 'New game'),
         bet.root,
         h('div', { class: 'field' }, h('label', { class: 'field-label' }, 'Mines'), seg.root),
-        startBtn, cashBtn, next, info);
+        startBtn, cashBtn, next,
+        h('p', { class: 'hint' }, 'More mines = bigger multiplier per safe tile, but higher risk. Cash out anytime after your first safe reveal — bust and your stake is gone.'));
 
       const sync = Nova.ui.bindStart(shell, startBtn, bet, 'Start game', () => active);
 
@@ -75,29 +79,36 @@
           const canCash = revealed.size > 0;
           cashBtn.disabled = !canCash;
           cashBtn.textContent = canCash ? `Cash out ${fmt(round2(stake * m))}` : 'Reveal a tile first';
-          const left = SIZE - count - revealed.size;
-          next.textContent = left > 0 ? `Next gem: ${fmtMult(mult(count, revealed.size + 1))}` : '';
+          next.textContent = `Next gem: ${fmtMult(mult(count, revealed.size + 1))}`;
         }
       }
 
-      function setTiles(enabled) {
-        tiles.forEach((t, i) => (t.disabled = !enabled || revealed.has(i)));
+      function showTile(i, kind, opts = {}) {
+        const t = tiles[i];
+        t.className = `tile open ${kind}${opts.dim ? ' dim' : ''}${opts.hit ? ' hit' : ''}`;
+        t.innerHTML = kind === 'mine' ? Nova.art.bomb : Nova.art.gem;
+        t.disabled = true;
       }
 
       function start() {
         if (active || Nova.ui.betBlock(bet)) return;
         stake = bet.get();
         if (!Nova.wallet.debit(stake)) return;
+        gen++;
+        timers.forEach(clearTimeout);
+        timers.length = 0;
         mines = new Set();
         while (mines.size < count) mines.add(Nova.randInt(SIZE));
         revealed = new Set();
         active = true;
-        ended = false;
-        tiles.forEach((t) => {
+        Nova.sfx.bet();
+        tiles.forEach((t, i) => {
           t.className = 'tile';
           t.innerHTML = Nova.logo();
+          t.disabled = false;
+          Nova.anim(t, [{ transform: 'scale(.8)', opacity: 0.3 }, { transform: 'scale(1)', opacity: 1 }],
+            { duration: 340, delay: ((i % 5) + Math.floor(i / 5)) * 26, easing: 'cubic-bezier(.2,.9,.3,1.25)', fill: 'backwards' });
         });
-        setTiles(true);
         bet.lock(true);
         seg.lock(true);
         startBtn.hidden = true;
@@ -109,8 +120,7 @@
 
       function finish() {
         active = false;
-        ended = true;
-        setTiles(false);
+        tiles.forEach((t) => (t.disabled = true));
         bet.lock(false);
         seg.lock(false);
         startBtn.hidden = false;
@@ -119,35 +129,38 @@
         sync();
       }
 
-      function revealAll(hit) {
-        tiles.forEach((t, i) => {
-          if (revealed.has(i)) return;
-          const isMine = mines.has(i);
-          t.classList.add('open', 'dim', isMine ? 'mine' : 'gem');
-          if (i === hit) t.classList.remove('dim');
-          t.innerHTML = Nova.icon(isMine ? 'bomb' : 'gem', 30);
-        });
+      // flip the remaining tiles in a ripple outward from `from`
+      function revealRest(from) {
+        const my = gen;
+        tiles.map((_, k) => k)
+          .filter((k) => k !== from && !revealed.has(k))
+          .sort((a, b) => dist(a, from) - dist(b, from))
+          .forEach((k, n) => later(() => { if (gen === my) showTile(k, mines.has(k) ? 'mine' : 'gem', { dim: true }); }, 240 + n * 24));
       }
 
       function reveal(i) {
         if (!active || revealed.has(i)) return;
-        const t = tiles[i];
-        if (mines.has(i)) {
-          t.classList.add('open', 'mine', 'hit');
-          t.innerHTML = Nova.icon('bomb', 30);
-          revealAll(i);
-          status.textContent = `Boom — you hit a mine and lost ${fmt(stake)}.`;
-          Nova.ui.toast(`Mine! −${fmt(stake)} tokens`, 'lose');
-          finish();
-          drawPills();
-          return;
-        }
+        if (mines.has(i)) { bust(i); return; }
         revealed.add(i);
-        t.classList.add('open', 'gem');
-        t.disabled = true;
-        t.innerHTML = Nova.icon('gem', 30);
+        showTile(i, 'gem');
+        Nova.sfx.gem(revealed.size);
+        Nova.fx.at(tiles[i], { count: 14, speed: 4.5, size: 4, life: 650 });
+        Nova.ui.bump(multPill, 1.2);
         if (revealed.size === SIZE - count) { cashOut(true); return; }
         status.textContent = 'Safe! Keep going or cash out.';
+        drawPills();
+      }
+
+      function bust(i) {
+        showTile(i, 'mine', { hit: true });
+        Nova.sfx.boom();
+        Nova.fx.at(tiles[i], { count: 34, speed: 8, size: 6, colors: ['#ef4444', '#f97316', '#fde047', '#7f1d1d', '#ffffff'], life: 850 });
+        Nova.fx.shake(board, 9);
+        shell.flash('lose');
+        finish();
+        revealRest(i);
+        shell.result({ win: false, big: 'Busted', small: '−' + fmt(stake), anchor: board });
+        status.textContent = `Boom — you hit a mine and lost ${fmt(stake)}.`;
         drawPills();
       }
 
@@ -156,10 +169,14 @@
         const m = mult(count, revealed.size);
         const win = round2(stake * m);
         Nova.wallet.credit(win);
-        revealAll(-1);
-        status.textContent = `${cleared ? 'Board cleared! ' : ''}Cashed out ${fmt(win)} at ${fmtMult(m)}.`;
-        Nova.ui.toast(`+${fmt(win)} tokens (${fmtMult(m)})`, 'win');
+        Nova.sfx.cash(Nova.sfx.level(m));
+        shell.flash('win');
+        Nova.fx.at(board, { count: 46, speed: 10, life: 1100 });
+        if (m >= 10) Nova.fx.confetti();
         finish();
+        revealRest(12);
+        shell.result({ win: true, big: fmtMult(m), small: '+' + fmt(win), anchor: board });
+        status.textContent = `${cleared ? 'Board cleared! ' : ''}Cashed out ${fmt(win)} at ${fmtMult(m)}.`;
         drawPills();
       }
 

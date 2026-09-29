@@ -2,6 +2,8 @@
 (function () {
   const { h, fmt, round2 } = Nova;
   const PAYOUT = 2;
+  const FLIP_MS = 1700;
+  const LAND_AT = 0.84; // fraction of the flip when the coin touches down
 
   const face = (kind) =>
     kind === 'heads'
@@ -9,6 +11,7 @@
       : `<div class="coin-face tails"><span class="coin-text top">TAILS</span><div class="coin-star">${Nova.icon('sparkles', 64)}</div></div>`;
 
   const mini = (kind) => `<span class="mini-coin ${kind}">${kind === 'heads' ? Nova.logo() : Nova.icon('sparkles', 12)}</span>`;
+  const name = (k) => (k === 'heads' ? 'Heads' : 'Tails');
 
   Nova.register({
     id: 'coinflip',
@@ -24,17 +27,20 @@
       let call = 'heads';
       let busy = false;
       let rot = 0;
+      let streak = 0;
 
       const callPill = Nova.ui.pill('');
       const winPill = Nova.ui.pill('');
       const coin = h('div', { class: 'coin', html: face('heads') + face('tails') });
       const wrap = h('div', { class: 'coin-wrap' }, coin);
+      const shadow = h('div', { class: 'coin-shadow' });
+      const arena = h('div', { class: 'coin-arena' }, h('div', { class: 'coin-halo' }), wrap, shadow);
       const status = h('p', { class: 'stage-status' }, 'Pick a side, set your bet and flip.');
-      const recent = Nova.ui.recent('Recent flips', 'No flips yet this session.', 14);
+      const recent = Nova.ui.recent('Recent flips', 'No flips yet this session.', 16);
 
       shell.stage.append(
         h('div', { class: 'stage-top' }, callPill, winPill),
-        h('div', { class: 'stage-center tall' }, wrap),
+        h('div', { class: 'stage-center tall' }, arena),
         status,
         recent.root);
 
@@ -42,8 +48,17 @@
       const sideBtns = {};
       const sides = h('div', { class: 'side-pick' });
       ['heads', 'tails'].forEach((k) => {
-        const b = h('button', { class: 'side-btn', type: 'button', html: mini(k) + `<span>${k === 'heads' ? 'Heads' : 'Tails'}</span>` });
-        b.addEventListener('click', () => { if (!busy) { call = k; draw(); } });
+        const b = h('button', { class: 'side-btn', type: 'button', html: mini(k) + `<span>${name(k)}</span>` });
+        b.addEventListener('click', () => {
+          if (busy || call === k) return;
+          call = k;
+          // show the called side face-up
+          rot = Math.round(rot / 360) * 360 + (k === 'tails' ? 180 : 0);
+          coin.classList.add('quick');
+          coin.style.transform = `rotateY(${rot}deg)`;
+          setTimeout(() => coin.classList.remove('quick'), 400);
+          draw();
+        });
         sideBtns[k] = b;
         sides.append(b);
       });
@@ -60,8 +75,10 @@
       bet.on(draw);
 
       function draw() {
-        callPill.innerHTML = mini(call) + `<span>Your call: <b>${call === 'heads' ? 'Heads' : 'Tails'}</b></span>`;
-        winPill.innerHTML = `Win <b class="good-text">${fmt(round2(bet.get() * PAYOUT))}</b>`;
+        callPill.innerHTML = mini(call) + `<span>Your call: <b>${name(call)}</b></span>`;
+        winPill.innerHTML = streak > 1
+          ? `<span class="streak">${streak}× streak</span>`
+          : `Win <b class="good-text">${fmt(round2(bet.get() * PAYOUT))}</b>`;
         payout.lastChild.innerHTML = `${fmt(round2(bet.get() * PAYOUT))} <small>tokens</small>`;
         Object.entries(sideBtns).forEach(([k, b]) => b.classList.toggle('active', k === call));
       }
@@ -72,28 +89,62 @@
         if (!Nova.wallet.debit(stake)) return;
         busy = true;
         bet.lock(true);
+        Object.values(sideBtns).forEach((b) => (b.disabled = true));
         flipBtn.disabled = true;
         flipBtn.textContent = 'Flipping…';
         status.textContent = 'Coin in the air…';
+        arena.classList.remove('win', 'lose');
+
+        Nova.sfx.bet();
+        Nova.sfx.whoosh(0.55);
+        Nova.sfx.coinSpin(FLIP_MS * LAND_AT / 1000);
 
         const result = Nova.randInt(2) === 0 ? 'heads' : 'tails';
         rot = Math.ceil(rot / 360) * 360 + 360 * 6 + (result === 'tails' ? 180 : 0);
-        wrap.classList.remove('jump');
-        void wrap.offsetWidth;
-        wrap.classList.add('jump');
         coin.style.transform = `rotateY(${rot}deg)`;
-        await Nova.sleep(1750);
+        const up = 'cubic-bezier(.2,.6,.35,1)';
+        const down = 'cubic-bezier(.55,0,.85,.4)';
+        Nova.anim(wrap, [
+          { transform: 'translateY(0) scale(1)', easing: up },
+          { transform: 'translateY(-105px) scale(1.16)', offset: 0.42, easing: down },
+          { transform: 'translateY(0) scale(1)', offset: LAND_AT, easing: up },
+          { transform: 'translateY(-14px) scale(1.02)', offset: 0.92, easing: down },
+          { transform: 'translateY(0) scale(1)' },
+        ], { duration: FLIP_MS });
+        Nova.anim(shadow, [
+          { transform: 'scale(1)', opacity: 0.7, easing: up },
+          { transform: 'scale(.45)', opacity: 0.2, offset: 0.42, easing: down },
+          { transform: 'scale(1)', opacity: 0.7, offset: LAND_AT, easing: up },
+          { transform: 'scale(.9)', opacity: 0.55, offset: 0.92, easing: down },
+          { transform: 'scale(1)', opacity: 0.7 },
+        ], { duration: FLIP_MS });
+
+        await Nova.sleep(FLIP_MS * LAND_AT);
+        Nova.sfx.coinLand();
+        await Nova.sleep(FLIP_MS * (1 - LAND_AT) + 60);
 
         const won = result === call;
         const win = round2(stake * PAYOUT);
-        if (won) Nova.wallet.credit(win);
-        status.innerHTML = won
-          ? `<b class="good-text">${result === 'heads' ? 'Heads' : 'Tails'}!</b> You won ${fmt(win)} tokens.`
-          : `<b class="bad-text">${result === 'heads' ? 'Heads' : 'Tails'}.</b> You lost ${fmt(stake)} tokens.`;
-        recent.add((result === 'heads' ? 'H' : 'T') + ' · ' + (won ? '+' + fmt(win - stake) : '−' + fmt(stake)), won ? 'win' : 'lose');
-        Nova.ui.toast(won ? `+${fmt(win)} tokens` : `−${fmt(stake)} tokens`, won ? 'win' : 'lose');
+        if (won) {
+          Nova.wallet.credit(win);
+          streak++;
+          arena.classList.add('win');
+          Nova.sfx.win(streak >= 3 ? 2 : 1);
+          Nova.fx.at(wrap, { count: 40, speed: 9, life: 1000 });
+          shell.flash('win');
+          status.innerHTML = `<b class="good-text">${name(result)}!</b> You won ${fmt(win)} tokens.`;
+        } else {
+          streak = 0;
+          arena.classList.add('lose');
+          Nova.sfx.lose();
+          shell.flash('lose');
+          status.innerHTML = `<b class="bad-text">${name(result)}.</b> You lost ${fmt(stake)} tokens.`;
+        }
+        recent.add(mini(result) + `<span>${won ? '+' + fmt(win - stake) : '−' + fmt(stake)}</span>`, (won ? 'win' : 'lose') + ' coin-chip', true);
         busy = false;
         bet.lock(false);
+        Object.values(sideBtns).forEach((b) => (b.disabled = false));
+        draw();
         sync();
       }
 

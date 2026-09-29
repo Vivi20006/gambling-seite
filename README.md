@@ -17,5 +17,6 @@ python3 -m http.server 8000
 ## Notes
 
 - Outcomes are drawn with `crypto.getRandomValues` in the browser. There is no server, so this is a demo, not a tamper-proof setup.
+- All sounds are synthesized live with the Web Audio API (no audio files); the speaker button in the top bar mutes them.
 - Payouts target ~96% RTP (Coin Flip is a flat 2× on a 50/50).
-- Structure: `js/core.js` (RNG, wallet, shared UI), `js/games/*.js` (one file per game), `js/app.js` (router + home), `css/style.css`.
+- Structure: `js/core.js` (RNG, wallet, effects, shared UI), `js/sound.js` (sound effects), `js/games/*.js` (one file per game), `js/app.js` (router + home), `css/style.css`.

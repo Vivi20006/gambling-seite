@@ -39,13 +39,14 @@
       let diff = 'easy';
       let mults = table(rows, diff);
       const balls = [];
+      const floaters = [];
       let raf = 0;
       let alive = true;
 
       const W = 640;
       const M = 34; // side margin
       const TOP = 40;
-      let dx, dy, H, cx;
+      let dx, dy, H, cx, sw, sh, sy, ballR, maxMult;
 
       const rowsPill = Nova.ui.pill('');
       const diffPill = Nova.ui.pill('');
@@ -62,7 +63,6 @@
       const diffSeg = Nova.ui.segmented({
         options: Object.entries(DIFFS).map(([k, d]) => ({ value: k, label: d.label, sub: '' })),
         value: 'easy',
-        cls: 'small-sub',
         onChange(v) { diff = v; rebuild(); },
       });
       const rowsSeg = Nova.ui.segmented({
@@ -77,7 +77,7 @@
         h('div', { class: 'field' }, h('label', { class: 'field-label' }, 'Difficulty'), diffSeg.root),
         h('div', { class: 'field' }, h('label', { class: 'field-label' }, 'Rows'), rowsSeg.root),
         dropBtn,
-        h('p', { class: 'hint' }, 'Higher difficulty pushes multipliers toward the edges — the center pays less, the edges pay far more.'));
+        h('p', { class: 'hint' }, 'Higher difficulty pushes multipliers toward the edges — the center pays less, the edges pay far more. Press Space to drop.'));
 
       const sync = Nova.ui.bindStart(shell, dropBtn, bet, 'Drop ball', () => balls.length >= MAX_BALLS);
       const pegHit = new Map();
@@ -85,10 +85,15 @@
 
       function rebuild() {
         mults = table(rows, diff);
+        maxMult = Math.max(...mults);
         dx = (W - 2 * M) / rows;
         dy = dx * 0.85;
         H = Math.round(TOP + rows * dy + 70);
         cx = W / 2;
+        sw = dx - 5;
+        sh = Math.min(30, dx * 0.8);
+        sy = TOP + rows * dy + 14;
+        ballR = Math.max(5, dx * 0.17);
         const dpr = window.devicePixelRatio || 1;
         canvas.width = W * dpr;
         canvas.height = H * dpr;
@@ -104,19 +109,31 @@
       const px = (r, j) => cx + (j - r / 2) * dx;
       const py = (r) => TOP + r * dy;
 
-      function slotColor(m, a = 1) {
-        const max = Math.max(...mults);
-        const t = m < 1 ? 0 : Math.min(1, Math.log(m + 0.01) / Math.log(max + 0.01));
-        if (m < 1) return `rgba(34,32,44,${a})`;
-        const l = 26 + t * 34;
-        return `hsla(${272 + t * 8}, ${60 + t * 30}%, ${l}%, ${a})`;
+      function slotColor(m) {
+        if (m < 1) return 'rgba(34,32,44,1)';
+        const t = Math.min(1, Math.log(m + 0.01) / Math.log(maxMult + 0.01));
+        return `hsl(${272 + t * 8}, ${60 + t * 30}%, ${26 + t * 34}%)`;
+      }
+
+      // position of a ball at time `now`; each segment is a ballistic arc between two peg contacts
+      function ballPos(b, now) {
+        const elapsed = Math.max(0, now - b.t0);
+        let s = 0;
+        let acc = 0;
+        while (s < b.segs.length && acc + b.segs[s].ms <= elapsed) { acc += b.segs[s].ms; s++; }
+        if (s >= b.segs.length) return null;
+        const seg = b.segs[s];
+        const t = (elapsed - acc) / seg.ms;
+        const x = seg.a.x + (seg.c.x - seg.a.x) * t;
+        const y = seg.a.y - seg.b * t + (seg.c.y - seg.a.y + seg.b) * t * t;
+        return { x, y, s };
       }
 
       function draw(now) {
         ctx.clearRect(0, 0, W, H);
         // spotlight cone
         const grad = ctx.createLinearGradient(0, TOP - 10, 0, py(rows));
-        grad.addColorStop(0, 'rgba(168,85,247,0.30)');
+        grad.addColorStop(0, 'rgba(168,85,247,0.28)');
         grad.addColorStop(1, 'rgba(168,85,247,0.02)');
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -127,36 +144,36 @@
         ctx.closePath();
         ctx.fill();
 
-        // pegs
+        // pegs – glow and swell when hit
         for (let r = 0; r < rows; r++) {
           for (let j = 0; j <= r; j++) {
             const hit = pegHit.get(r * 100 + j);
-            const k = hit ? Math.max(0, 1 - (now - hit) / 350) : 0;
-            const rad = 3.6 + k * 2.4;
+            const k = hit ? Math.max(0, 1 - (now - hit) / 380) : 0;
             ctx.beginPath();
-            ctx.arc(px(r, j), py(r), rad, 0, Math.PI * 2);
+            ctx.arc(px(r, j), py(r), 3.6 + k * 2.6, 0, Math.PI * 2);
             ctx.shadowColor = 'rgba(192,132,252,0.9)';
-            ctx.shadowBlur = 8 + k * 14;
-            ctx.fillStyle = k > 0 ? '#f3e8ff' : '#c084fc';
+            ctx.shadowBlur = 8 + k * 16;
+            ctx.fillStyle = k > 0 ? `rgb(${192 + 51 * k},${132 + 100 * k},252)` : '#c084fc';
             ctx.fill();
           }
         }
         ctx.shadowBlur = 0;
 
-        // slots
-        const sw = dx - 5, sh = Math.min(30, dx * 0.8), sy = py(rows) + 14;
-        ctx.font = `700 ${Math.max(9, Math.min(13, dx * 0.27))}px "JetBrains Mono", ui-monospace, monospace`;
+        // slots – dip down and outline when hit
+        ctx.font = `700 ${Math.max(9, Math.min(13, dx * 0.27))}px "Geist Mono", ui-monospace, monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         mults.forEach((m, k) => {
           const hit = slotHit.get(k);
           const t = hit ? Math.max(0, 1 - (now - hit) / 500) : 0;
           const x = px(rows, k) - sw / 2;
-          const y = sy + t * 6;
+          const y = sy + Math.sin(t * Math.PI) * 7;
           ctx.fillStyle = slotColor(m);
+          if (t > 0 && m >= 1) { ctx.shadowColor = 'rgba(192,132,252,.9)'; ctx.shadowBlur = 18 * t; }
           ctx.beginPath();
           ctx.roundRect(x, y, sw, sh, 6);
           ctx.fill();
+          ctx.shadowBlur = 0;
           if (t > 0) {
             ctx.strokeStyle = `rgba(255,255,255,${t})`;
             ctx.lineWidth = 1.5;
@@ -166,30 +183,48 @@
           ctx.fillText(fmtM(m), x + sw / 2, y + sh / 2 + 1);
         });
 
-        // balls
+        // balls with a short fading trail
         for (let i = balls.length - 1; i >= 0; i--) {
           const b = balls[i];
-          const elapsed = Math.max(0, now - b.t0);
-          const seg = Math.min(rows + 1, Math.floor(elapsed / b.segMs));
-          const t = Math.min(1, (elapsed - seg * b.segMs) / b.segMs);
-          if (seg >= rows + 1) { land(b); balls.splice(i, 1); continue; }
-          const a = b.pts[seg], c = b.pts[seg + 1];
-          const x = a.x + (c.x - a.x) * t;
-          const y = a.y + (c.y - a.y) * t * t - Math.sin(Math.PI * t) * (seg === 0 ? 0 : 9) * (1 - t);
-          if (t < 0.08 && seg > 0 && !b['hit' + seg]) {
-            b['hit' + seg] = true;
-            pegHit.set((seg - 1) * 100 + b.path[seg - 1], now);
+          const p = ballPos(b, now);
+          if (!p) { land(b, now); balls.splice(i, 1); continue; }
+          if (p.s > b.seg) {
+            b.seg = p.s;
+            if (p.s >= 1 && p.s <= rows) {
+              pegHit.set((p.s - 1) * 100 + b.path[p.s - 1], now);
+              Nova.sfx.peg(p.s - 1);
+            }
           }
+          b.trail.push(p);
+          if (b.trail.length > 7) b.trail.shift();
+          b.trail.forEach((q, n) => {
+            ctx.beginPath();
+            ctx.arc(q.x, q.y, ballR * (0.35 + n / 14), 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(192,132,252,${(n / b.trail.length) * 0.22})`;
+            ctx.fill();
+          });
           ctx.beginPath();
-          ctx.arc(x, y, Math.max(5, dx * 0.17), 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, ballR, 0, Math.PI * 2);
           ctx.shadowColor = 'rgba(216,180,254,1)';
           ctx.shadowBlur = 14;
-          const bg = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, 9);
+          const bg = ctx.createRadialGradient(p.x - 2, p.y - 2, 1, p.x, p.y, ballR * 1.6);
           bg.addColorStop(0, '#fff');
           bg.addColorStop(1, '#a855f7');
           ctx.fillStyle = bg;
           ctx.fill();
           ctx.shadowBlur = 0;
+        }
+
+        // floating payout labels above the slots
+        for (let i = floaters.length - 1; i >= 0; i--) {
+          const f = floaters[i];
+          const t = (now - f.t0) / 900;
+          if (t >= 1) { floaters.splice(i, 1); continue; }
+          ctx.globalAlpha = 1 - t;
+          ctx.fillStyle = f.color;
+          ctx.font = `700 13px "Geist Mono", ui-monospace, monospace`;
+          ctx.fillText(f.text, f.x, sy - 10 - t * 34);
+          ctx.globalAlpha = 1;
         }
       }
 
@@ -199,14 +234,25 @@
         raf = requestAnimationFrame(loop);
       }
 
-      function land(b) {
+      function land(b, now) {
         const m = b.mult;
         const win = round2(b.stake * m);
-        slotHit.set(b.slot, performance.now());
+        slotHit.set(b.slot, now);
         if (win > 0) Nova.wallet.credit(win);
         const profit = round2(win - b.stake);
+        Nova.sfx.slot(m);
+        floaters.push({ x: px(rows, b.slot), text: `+${fmt(win)}`, color: m >= 1 ? '#86efac' : '#a09bb0', t0: now });
         recent.add(`${fmtM(m)} · ${profit >= 0 ? '+' : '−'}${fmt(Math.abs(profit))}`, m >= 1 ? 'win' : 'lose');
-        if (m >= 5 || profit >= b.stake * 4) Nova.ui.toast(`${fmtM(m)} — +${fmt(win)} tokens`, 'win');
+        if (m >= 10) {
+          Nova.sfx.cash(3);
+          Nova.fx.confetti();
+          shell.flash('win');
+        } else if (m >= 3) {
+          Nova.sfx.coins(5);
+          const r = canvas.getBoundingClientRect();
+          const s = r.width / W;
+          Nova.fx.burst(r.left + px(rows, b.slot) * s, r.top + sy * s, { count: 18, speed: 6, up: 3, life: 800 });
+        }
         updateBalls();
       }
 
@@ -221,18 +267,39 @@
         if (balls.length >= MAX_BALLS || Nova.ui.betBlock(bet)) return;
         const stake = bet.get();
         if (!Nova.wallet.debit(stake)) return;
+        Nova.sfx.drop();
+        // path[r] = column of the peg hit in row r; last entry = slot
         const path = [];
         let j = 0;
-        // path[r] = column index of the peg the ball is on in row r; final entry = slot
         for (let r = 0; r < rows; r++) { path.push(j); j += Nova.randInt(2); }
         path.push(j);
-        const pts = [{ x: cx, y: TOP - 34 }];
-        for (let r = 0; r <= rows; r++) pts.push({ x: px(r, path[r]), y: r === rows ? py(rows) + 14 + 12 : py(r) - 9 });
-        balls.push({ stake, path, pts, slot: j, mult: mults[j], t0: performance.now(), segMs: rows >= 16 ? 95 : 115 });
+        // contact points: resting on top of each peg, nudged toward the side it bounces to
+        const pts = [{ x: cx + (Math.random() - 0.5) * 4, y: TOP - 34 }];
+        for (let r = 0; r < rows; r++) {
+          const dir = path[r + 1] === path[r] ? -1 : 1;
+          pts.push({ x: px(r, path[r]) + dir * dx * 0.12 + (Math.random() - 0.5) * 2, y: py(r) - 3.6 - ballR });
+        }
+        pts.push({ x: px(rows, j), y: sy + sh / 2 });
+        const segMs = rows >= 16 ? 105 : rows >= 12 ? 120 : 140;
+        const segs = [];
+        for (let s = 0; s < pts.length - 1; s++) {
+          segs.push({ a: pts[s], c: pts[s + 1], b: s === 0 ? 0 : dy * (0.35 + Math.random() * 0.2), ms: s === 0 ? 220 : segMs });
+        }
+        balls.push({ stake, path, segs, seg: -1, trail: [], slot: j, mult: mults[j], t0: performance.now() });
         updateBalls();
       }
 
       dropBtn.addEventListener('click', drop);
+      const onKey = (e) => {
+        if (e.code !== 'Space' || e.repeat) return;
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'BUTTON')) return;
+        e.preventDefault();
+        drop();
+      };
+      document.addEventListener('keydown', onKey);
+      shell.cleanup(() => document.removeEventListener('keydown', onKey));
+
       rebuild();
       updateBalls();
       raf = requestAnimationFrame(loop);

@@ -3,24 +3,24 @@
   const { h } = Nova;
   const app = document.getElementById('app');
 
-  /* decorative card art per game (CSS + emoji, no external assets) */
+  /* decorative card art per game (CSS + inline SVG, no external assets) */
   const ART = {
-    mines: '<span class="art-big">💣</span><span class="art-tiles"></span>',
-    coinflip: '<span class="art-coin a"></span><span class="art-coin b"></span>',
+    mines: `<span class="art-float art-bomb">${Nova.art.bomb}</span><span class="art-gem-sm">${Nova.art.gem}</span><span class="art-tiles"></span>`,
+    coinflip: '<span class="art-float art-coin a"></span><span class="art-float slow art-coin b"></span>',
     tower: '<span class="art-tower"><i></i><i></i><i></i><i></i><i></i><i></i></span>',
-    chicken: '<span class="art-big chick">🐔</span><span class="art-cones">🚧</span>',
-    plinko: '<span class="art-plinko"></span>',
-    dice: '<span class="art-die a"><i></i></span><span class="art-die b"><i></i></span>',
-    upgrader: '<span class="art-upg">' + Nova.icon('chevrons-up', 84) + '</span>',
+    chicken: '<span class="art-float art-big chick">🐔</span><span class="art-cones">🚧</span>',
+    plinko: '<span class="art-plinko"></span><span class="art-ball"></span>',
+    dice: '<span class="art-float art-die a"><i></i></span><span class="art-float slow art-die b"><i></i></span>',
+    upgrader: '<span class="art-float art-upg">' + Nova.icon('chevrons-up', 84) + '</span>',
   };
   const BLURB = {
-    mines: 'Reveal tiles, avoid the mines, cash out before your luck runs out. Every play costs credit tokens and can win you more — or lose your stake.',
-    coinflip: 'Call heads or tails and flip. Win and you double your bet, lose and your stake is gone — simple, fast, and always your call.',
-    tower: 'Climb floor by floor, picking the safe tile each time. Multipliers stack as you go — cash out anytime, or push for the top.',
-    chicken: 'Cross the road lane by lane. Every safe step raises your multiplier — cash out anytime, or push for the far side.',
-    plinko: 'Drop the ball and watch it bounce through the pegs. Every run pays out instantly, edges hit the biggest multipliers.',
-    dice: 'Roll the dice and enjoy instant rewards. Choose your multiplier, test your luck, and see how high you can go.',
-    upgrader: 'Increase your multiplier, or risk it all for a higher one. Each roll gives you a chance to upgrade — cash out before it\'s too late.',
+    mines: 'Reveal tiles, avoid the mines, cash out before your luck runs out. Every gem raises the multiplier.',
+    coinflip: 'Call heads or tails and flip. Win and you double your bet, lose and your stake is gone.',
+    tower: 'Climb floor by floor, picking the safe tile each time. Multipliers stack — cash out anytime.',
+    chicken: 'Cross the road lane by lane. Every safe step raises your multiplier — don\'t get run over.',
+    plinko: 'Drop the ball and watch it bounce through the pegs. The edges hit the biggest multipliers.',
+    dice: 'Drag your win zone, roll, and see how high you can go. Smaller zone, bigger payout.',
+    upgrader: 'Stake a few tokens for a shot at a much bigger item. Pick your odds and spin the ring.',
   };
   const ORDER = ['mines', 'coinflip', 'tower', 'chicken', 'plinko', 'dice', 'upgrader'];
 
@@ -28,9 +28,19 @@
   document.getElementById('brandMark').innerHTML = Nova.logo();
   document.getElementById('chipIcon').innerHTML = Nova.icon('wallet', 16);
   const chip = document.getElementById('chipBalance');
-  const syncChip = () => (chip.textContent = Nova.fmt(Nova.wallet.balance));
-  syncChip();
-  Nova.wallet.subscribe(syncChip);
+  const setChip = Nova.ui.counter(chip, Nova.wallet.balance);
+  Nova.wallet.subscribe(() => setChip(Nova.wallet.balance));
+
+  const soundBtn = document.getElementById('soundBtn');
+  const syncSound = () => {
+    soundBtn.innerHTML = Nova.icon(Nova.sfx.muted ? 'volume-x' : 'volume', 18);
+    soundBtn.classList.toggle('off', Nova.sfx.muted);
+    soundBtn.setAttribute('aria-label', Nova.sfx.muted ? 'Unmute sound' : 'Mute sound');
+    soundBtn.title = Nova.sfx.muted ? 'Sound off' : 'Sound on';
+  };
+  soundBtn.addEventListener('click', () => Nova.sfx.toggle());
+  Nova.sfx.subscribe(syncSound);
+  syncSound();
 
   const nav = document.getElementById('topnav');
   nav.append(h('a', { href: '#/', 'data-id': '' }, 'Minigames'));
@@ -42,23 +52,34 @@
   document.getElementById('resetBtn').addEventListener('click', () => {
     if (confirm('Reset your balance to 1,000 tokens and clear your inventory?')) {
       Nova.wallet.reset();
+      Nova.sfx.coins(8);
       Nova.ui.toast('Balance reset to 1,000 tokens', 'info');
       route();
     }
   });
 
+  /* soft UI sounds for every control (game actions play their own) */
+  const CLICKY = '.bet-step, .bet-quick, .btn-ghost, .btn-pill, .icon-btn:not(#soundBtn), .topnav a, .back-link, .game-card, .linklike';
+  const SELECTY = '.seg-btn, .side-btn, .mode-btn, .mode-wide, .item, .preset';
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest(SELECTY + ',' + CLICKY);
+    if (!el || el.disabled) return;
+    if (el.matches(SELECTY)) Nova.sfx.select();
+    else Nova.sfx.click();
+  }, true);
+
   /* home */
   function home() {
-    const cards = ORDER.map((id) => Nova.games.find((g) => g.id === id)).filter(Boolean).map((g) =>
-      h('a', { class: 'game-card card-' + g.id, href: '#/' + g.id },
+    const cards = ORDER.map((id) => Nova.games.find((g) => g.id === id)).filter(Boolean).map((g, i) =>
+      h('a', { class: 'game-card card-' + g.id, href: '#/' + g.id, style: { '--i': i } },
         h('div', { class: 'card-art', html: ART[g.id] || '' }),
         h('div', { class: 'card-body' },
-          h('div', { class: 'card-icon', html: Nova.icon(g.icon, 26) }),
+          h('div', { class: 'card-icon', html: Nova.icon(g.icon, 24) }),
           h('h3', {}, g.title),
           h('p', {}, BLURB[g.id] || g.subtitle),
           h('span', { class: 'play-now', html: 'Play now ' + Nova.icon('arrow-right', 15) }))));
 
-    return h('div', { class: 'home' },
+    return h('div', { class: 'home page-enter' },
       h('div', { class: 'home-head' },
         h('h2', { html: Nova.icon('sparkles', 22) + '<span>Games</span>' }),
         h('p', {}, 'Real risk — these can win you more tokens, or lose your stake entirely.'),
@@ -73,6 +94,7 @@
   let current = null;
   function route() {
     if (current) { current.destroy(); current = null; }
+    document.querySelectorAll('.modal-overlay').forEach((m) => m.remove());
     const id = location.hash.replace(/^#\/?/, '');
     const game = Nova.games.find((g) => g.id === id);
     app.replaceChildren();

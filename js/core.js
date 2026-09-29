@@ -1,4 +1,4 @@
-/* NOVA core: rng, wallet, icons, shared UI components */
+/* NOVA core: rng, wallet, icons, effects, shared UI components */
 (function () {
   'use strict';
 
@@ -17,6 +17,8 @@
     Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: max });
   Nova.fmtMult = (m) => (m >= 1000 ? Nova.fmt(m, 0) : m.toFixed(2)) + '×';
   Nova.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  Nova.reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  Nova.anim = (el, frames, opts) => (Nova.reducedMotion || !el || !el.animate ? null : el.animate(frames, opts));
 
   Nova.h = function (tag, props, ...kids) {
     const e = document.createElement(tag);
@@ -64,7 +66,9 @@
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     bomb: '<circle cx="11" cy="14" r="8"/><path d="M16.5 8.5 19 6"/><path d="M19 3v2M22 5h-2M20.6 3.4l-1.2 1.2"/>',
     coin: '<circle cx="12" cy="12" r="9"/><path d="M9 9h6M9 15h6M12 6v12"/>',
-    swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>',
+    volume: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/>',
+    'volume-x': '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/>',
+    flag: '<path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.3 2A6 6 0 0 0 19.6 3a1 1 0 0 1 1.4.9v10.2a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-7.3-2a6 6 0 0 0-4.7 2"/>',
   };
   Nova.icon = (name, size = 18) =>
     `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
@@ -72,6 +76,12 @@
   /* brand "N" mark */
   Nova.logo = (cls = '') =>
     `<svg class="logo ${cls}" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M12 54V10h10l20 28V10h10v44H42L22 26v28z"/></svg>`;
+
+  /* filled game art (gradients live in index.html) */
+  Nova.art = {
+    gem: '<svg class="svg-gem" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 10h28l12 14-26 30L6 24z" fill="url(#gGem)"/><path d="M6 24h52M18 10l8 14 6-14 6 14 8-14M26 24l6 30 6-30" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    bomb: '<svg class="svg-bomb" viewBox="0 0 64 64" aria-hidden="true"><circle cx="30" cy="37" r="19" fill="url(#gBomb)" stroke="rgba(255,255,255,.14)"/><ellipse cx="23" cy="30" rx="6" ry="3.5" fill="rgba(255,255,255,.28)" transform="rotate(-35 23 30)"/><rect x="38" y="14" width="10" height="9" rx="2" fill="#3a3346" transform="rotate(40 43 18)"/><path d="M46 14c3-6 8-6 10-2" stroke="#f59e0b" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle class="spark" cx="56.5" cy="11" r="3.5" fill="#fde047"/></svg>',
+  };
 
   /* ---------- wallet ---------- */
   const KEY = 'nova.save.v1';
@@ -130,19 +140,134 @@
     },
   };
 
-  /* ---------- toast ---------- */
+  /* ---------- effects ---------- */
+  Nova.fx = (function () {
+    let canvas = null;
+    let c2 = null;
+    let parts = [];
+    let raf = 0;
+    const COLORS = ['#c084fc', '#e9d5ff', '#a855f7', '#f0abfc', '#ffffff'];
+
+    function resize() {
+      const d = window.devicePixelRatio || 1;
+      canvas.width = innerWidth * d;
+      canvas.height = innerHeight * d;
+      c2.setTransform(d, 0, 0, d, 0, 0);
+    }
+    function ensure() {
+      if (canvas) return;
+      canvas = h('canvas', { class: 'fx-canvas', 'aria-hidden': 'true' });
+      document.body.append(canvas);
+      c2 = canvas.getContext('2d');
+      resize();
+      window.addEventListener('resize', resize);
+    }
+    function loop() {
+      c2.clearRect(0, 0, innerWidth, innerHeight);
+      const now = performance.now();
+      parts = parts.filter((p) => {
+        const t = (now - p.t0) / p.life;
+        if (t >= 1) return false;
+        p.vx *= p.drag;
+        p.vy = p.vy * p.drag + p.g;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        c2.globalAlpha = 1 - t * t;
+        c2.fillStyle = p.color;
+        c2.save();
+        c2.translate(p.x, p.y);
+        c2.rotate(p.rot);
+        if (p.shape === 'rect') c2.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2 * (0.4 + Math.abs(Math.cos(p.rot * 2))));
+        else { c2.beginPath(); c2.arc(0, 0, (p.s / 2) * (1 - t * 0.5), 0, Math.PI * 2); c2.fill(); }
+        c2.restore();
+        return true;
+      });
+      c2.globalAlpha = 1;
+      raf = parts.length ? requestAnimationFrame(loop) : 0;
+    }
+    function burst(x, y, o = {}) {
+      if (Nova.reducedMotion) return;
+      ensure();
+      const n = o.count || 24;
+      const colors = o.colors || COLORS;
+      const now = performance.now();
+      for (let i = 0; i < n; i++) {
+        const a = (o.angle != null ? o.angle : 0) + (Math.random() - 0.5) * (o.spread != null ? o.spread : Math.PI * 2);
+        const sp = (o.speed || 6) * (0.35 + Math.random() * 0.85);
+        parts.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp - (o.up != null ? o.up : 1.5),
+          g: o.gravity != null ? o.gravity : 0.18,
+          drag: o.drag || 0.96,
+          s: (o.size || 5) * (0.6 + Math.random() * 0.8),
+          color: colors[i % colors.length],
+          t0: now,
+          life: (o.life || 900) * (0.7 + Math.random() * 0.6),
+          rot: Math.random() * 6,
+          vr: (Math.random() - 0.5) * 0.3,
+          shape: o.shape || (Math.random() < 0.5 ? 'rect' : 'dot'),
+        });
+      }
+      if (!raf) raf = requestAnimationFrame(loop);
+    }
+    function at(el, o) {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      burst(r.left + r.width / 2, r.top + r.height / 2, o);
+    }
+    function confetti() {
+      const o = { count: 70, speed: 17, up: 0, gravity: 0.32, drag: 0.985, life: 2300, shape: 'rect', size: 9, spread: 0.8,
+        colors: ['#c084fc', '#f0abfc', '#ffffff', '#fde047', '#4ade80', '#a855f7'] };
+      burst(innerWidth * 0.12, innerHeight + 10, { ...o, angle: -Math.PI / 2 + 0.38 });
+      burst(innerWidth * 0.88, innerHeight + 10, { ...o, angle: -Math.PI / 2 - 0.38 });
+    }
+    function shake(el, px = 7) {
+      Nova.anim(el, [0, -1, 0.8, -0.6, 0.4, -0.2, 0].map((k) => ({ transform: `translateX(${k * px}px)` })), { duration: 420, easing: 'ease-out' });
+    }
+    return { burst, at, confetti, shake };
+  })();
+
+  /* ---------- toast (system messages only) ---------- */
   Nova.ui.toast = function (text, type = 'info') {
     const box = document.getElementById('toasts');
     if (!box) return;
     const t = h('div', { class: 'toast ' + type }, text);
     box.append(t);
-    while (box.children.length > 4) box.firstChild.remove();
-    setTimeout(() => t.classList.add('out'), 3200);
-    setTimeout(() => t.remove(), 3600);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => t.classList.add('out'), 2600);
+    setTimeout(() => t.remove(), 3000);
   };
 
   /* ---------- shared components ---------- */
   Nova.ui.pill = (html, cls = '') => h('span', { class: 'pill ' + cls, html });
+  Nova.ui.bump = (el, s = 1.14) =>
+    Nova.anim(el, [{ transform: 'scale(1)' }, { transform: `scale(${s})` }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+
+  /* Number that eases to each new value and flashes green/red */
+  Nova.ui.counter = function (el, initial) {
+    let shown = initial;
+    let raf = 0;
+    el.textContent = Nova.fmt(shown);
+    return function (target) {
+      if (target === shown) return;
+      const from = shown;
+      const t0 = performance.now();
+      el.classList.remove('up', 'down');
+      void el.offsetWidth;
+      el.classList.add(target > from ? 'up' : 'down');
+      cancelAnimationFrame(raf);
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / 520);
+        const e = 1 - Math.pow(1 - k, 3);
+        shown = k < 1 ? from + (target - from) * e : target;
+        el.textContent = Nova.fmt(Nova.round2(shown));
+        if (k < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    };
+  };
 
   /* Game page shell: header, stage, side column with balance card */
   Nova.ui.shell = function (game) {
@@ -150,12 +275,16 @@
     const cleanup = (fn) => { cleanups.push(fn); return fn; };
 
     const balanceValue = h('div', { class: 'balance-value mono' });
+    const setBalance = Nova.ui.counter(balanceValue, Nova.wallet.balance);
     const freeBtn = h('button', { class: 'btn-ghost small', type: 'button' }, `Claim ${FREE_AMOUNT} free tokens`);
     freeBtn.addEventListener('click', () => {
-      if (Nova.wallet.claimFree()) Nova.ui.toast(`+${FREE_AMOUNT} free tokens`, 'win');
+      if (!Nova.wallet.claimFree()) return;
+      Nova.sfx.coins(8);
+      Nova.fx.at(balanceValue, { count: 20 });
+      Nova.ui.toast(`+${FREE_AMOUNT} free tokens`, 'win');
     });
     const syncBalance = () => {
-      balanceValue.textContent = Nova.fmt(Nova.wallet.balance);
+      setBalance(Nova.wallet.balance);
       freeBtn.hidden = Nova.wallet.balance >= 1;
     };
     syncBalance();
@@ -166,11 +295,13 @@
       balanceValue,
       freeBtn);
 
-    const stage = h('section', { class: 'stage' });
+    const flashEl = h('div', { class: 'stage-flash', 'aria-hidden': 'true' });
+    const pop = h('div', { class: 'result-pop', role: 'status' });
+    const stage = h('section', { class: 'stage' }, flashEl, pop);
     const controls = h('div', { class: 'panel controls' });
     const side = h('aside', { class: 'side' }, balanceCard, controls);
 
-    const root = h('div', { class: 'game-page' },
+    const root = h('div', { class: 'game-page page-enter' },
       h('a', { class: 'back-link', href: '#/', html: Nova.icon('arrow-left', 16) + '<span>Back to Minigames</span>' }),
       h('div', { class: 'game-head' },
         h('div', { class: 'game-title' },
@@ -181,8 +312,38 @@
         h('div', { class: 'badges' }, (game.badges || []).map((b) => Nova.ui.pill(b.html, b.cls)))),
       h('div', { class: 'game-grid' }, stage, side));
 
+    /* big centered win/lose card over an element of the stage */
+    function result({ win, big, small, anchor }) {
+      pop.className = 'result-pop ' + (win ? 'win' : 'lose');
+      pop.innerHTML = `<b class="mono">${big}</b>${small ? `<span class="mono">${small}</span>` : ''}`;
+      if (anchor) {
+        const sr = stage.getBoundingClientRect();
+        const ar = anchor.getBoundingClientRect();
+        pop.style.left = ar.left - sr.left + ar.width / 2 + 'px';
+        pop.style.top = ar.top - sr.top + ar.height / 2 + 'px';
+      } else {
+        pop.style.left = '50%';
+        pop.style.top = '45%';
+      }
+      pop.getAnimations().forEach((a) => a.cancel());
+      const frames = [
+        { opacity: 0, transform: 'translate(-50%,-50%) scale(.6)' },
+        { opacity: 1, transform: 'translate(-50%,-50%) scale(1.08)', offset: 0.14 },
+        { opacity: 1, transform: 'translate(-50%,-50%) scale(1)', offset: 0.22 },
+        { opacity: 1, transform: 'translate(-50%,-50%) scale(1)', offset: 0.86 },
+        { opacity: 0, transform: 'translate(-50%,-50%) scale(.95)' },
+      ];
+      if (Nova.reducedMotion) frames.forEach((f) => (f.transform = 'translate(-50%,-50%)'));
+      pop.animate(frames, { duration: 2000, easing: 'ease-out', fill: 'forwards' });
+    }
+
+    function flash(kind) {
+      flashEl.className = 'stage-flash ' + kind;
+      Nova.anim(flashEl, [{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 0 }], { duration: 750, easing: 'ease-out' });
+    }
+
     return {
-      root, stage, controls, cleanup,
+      root, stage, controls, cleanup, result, flash,
       destroy() { cleanups.splice(0).forEach((fn) => { try { fn(); } catch (e) { /* ignore */ } }); },
     };
   };
@@ -194,6 +355,8 @@
     const btns = new Map();
     const root = h('div', { class: 'seg ' + (opts.cls || ''), role: 'radiogroup' });
     root.style.setProperty('--cols', opts.cols || opts.options.length);
+    const glider = h('span', { class: 'seg-glider', 'aria-hidden': 'true' });
+    root.append(glider);
     opts.options.forEach((o) => {
       const b = h('button', { class: 'seg-btn', type: 'button', role: 'radio' },
         h('span', { class: 'seg-label' }, o.label),
@@ -203,9 +366,10 @@
         api.set(o.value);
         opts.onChange && opts.onChange(o.value);
       });
-      btns.set(o.value, { b, label: b.querySelector('.seg-label'), sub: b.querySelector('.seg-sub') });
+      btns.set(o.value, { b, sub: b.querySelector('.seg-sub') });
       root.append(b);
     });
+    const idx = () => [...btns.keys()].indexOf(value);
     const api = {
       root,
       get value() { return value; },
@@ -215,6 +379,7 @@
           x.b.classList.toggle('active', k === v);
           x.b.setAttribute('aria-checked', k === v ? 'true' : 'false');
         });
+        glider.style.setProperty('--i', idx());
       },
       setSub(v, text) { const x = btns.get(v); if (x && x.sub) x.sub.textContent = text; },
       lock(b) { locked = b; root.classList.toggle('locked', b); btns.forEach((x) => (x.b.disabled = b)); },
@@ -243,7 +408,9 @@
     function set(v) {
       v = parseFloat(v);
       if (!isFinite(v)) v = 1;
-      value = Nova.round2(Nova.clamp(v, 1, 1e9));
+      const next = Nova.round2(Nova.clamp(v, 1, 1e9));
+      if (next !== value) Nova.ui.bump(input, 1.08);
+      value = next;
       input.value = String(value);
       listeners.forEach((fn) => fn(value));
     }
@@ -293,8 +460,8 @@
     return sync;
   };
 
-  /* Small "recent results" list */
-  Nova.ui.recent = function (title, emptyText, max = 12, right) {
+  /* Small "recent results" list; newest chip slides in on the left */
+  Nova.ui.recent = function (title, emptyText, max = 12) {
     const list = h('div', { class: 'recent-list' }, h('span', { class: 'muted' }, emptyText));
     const rightEl = h('span', { class: 'recent-right' });
     const root = h('div', { class: 'recent' },
@@ -303,10 +470,12 @@
     let n = 0;
     return {
       root,
-      add(text, cls = '') {
+      add(content, cls = '', isHtml = false) {
         if (n === 0) list.textContent = '';
         n++;
-        list.prepend(h('span', { class: 'chip ' + cls }, text));
+        const chip = h('span', { class: 'chip ' + cls, html: isHtml ? content : null }, isHtml ? null : content);
+        list.prepend(chip);
+        Nova.anim(chip, [{ opacity: 0, transform: 'translateX(-12px) scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1.3)' });
         while (list.children.length > max) list.lastChild.remove();
       },
       setRight(t) { rightEl.innerHTML = t; },

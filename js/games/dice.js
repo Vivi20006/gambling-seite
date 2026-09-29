@@ -77,7 +77,8 @@
       const bigNum = h('div', { class: 'dice-num mono idle' }, '00.00');
       const hint = h('div', { class: 'dice-hint' });
       const bar = h('div', { class: 'dice-bar' });
-      const marker = h('div', { class: 'dice-marker', hidden: true });
+      const markerVal = h('span', { class: 'dice-marker-val mono' });
+      const marker = h('div', { class: 'dice-marker', hidden: true }, markerVal);
       const track = h('div', { class: 'dice-track' }, bar, marker);
       const ticks = h('div', { class: 'dice-ticks' }, ...[0, 25, 50, 75, 100].map((n) => h('span', { style: { left: n + '%' } }, String(n))));
       const status = h('p', { class: 'stage-status' }, 'Set your zone and roll. Press Space to roll again.');
@@ -152,7 +153,12 @@
           }
           ok = best;
         }
-        if (ok) { x = ok; draw(); }
+        if (ok) {
+          const before = x[i];
+          x = ok;
+          if (Math.floor(before) !== Math.floor(x[i])) Nova.sfx.tick(0.7);
+          draw();
+        }
       }
 
       function startDrag(e, i) {
@@ -254,9 +260,18 @@
         bet.lock(true);
         rollBtn.disabled = true;
         rollBtn.textContent = 'Rolling…';
-        marker.hidden = true;
-        bigNum.className = 'dice-num mono';
         handles.forEach((el) => el.classList.add('locked'));
+        Nova.sfx.bet();
+        if (marker.hidden) {
+          // first roll: the marker enters from the middle
+          marker.hidden = false;
+          marker.style.transition = 'none';
+          marker.style.left = '50%';
+          void marker.offsetWidth;
+          marker.style.transition = '';
+        }
+        marker.className = 'dice-marker rolling';
+        bigNum.className = 'dice-num mono rolling';
 
         const roll = Nova.randInt(10000) / 100;
         const win = isWin(mode, x, roll);
@@ -264,26 +279,37 @@
         const t0 = performance.now();
         await new Promise((res) => {
           const tick = () => {
-            if (performance.now() - t0 > 650) return res();
+            if (performance.now() - t0 > 600) return res();
             bigNum.textContent = (Nova.randInt(10000) / 100).toFixed(2).padStart(5, '0');
+            Nova.sfx.tick(0.8 + Math.random() * 0.5);
             setTimeout(tick, 45);
           };
           tick();
         });
         bigNum.textContent = roll.toFixed(2).padStart(5, '0');
-        bigNum.classList.add(win ? 'win' : 'lose');
-        marker.hidden = false;
+        bigNum.className = 'dice-num mono ' + (win ? 'win' : 'lose');
+        Nova.anim(bigNum, [{ transform: 'scale(1.2)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.2,1.5,.4,1)' });
         marker.style.left = roll + '%';
+        markerVal.textContent = roll.toFixed(2);
         marker.className = 'dice-marker ' + (win ? 'win' : 'lose');
 
         const payout = round2(stake * m);
-        if (win) { Nova.wallet.credit(payout); won++; } else lost++;
+        if (win) {
+          Nova.wallet.credit(payout);
+          won++;
+          Nova.sfx.win(Nova.sfx.level(m));
+          shell.flash('win');
+          setTimeout(() => Nova.fx.at(marker, { count: 26, speed: 7, life: 900 }), 320);
+          if (m >= 10) Nova.fx.confetti();
+        } else {
+          lost++;
+          Nova.sfx.lose();
+        }
         status.innerHTML = win
           ? `<b class="good-text">You won ${fmt(payout)} tokens</b> at ${m.toFixed(2)}×.`
           : `<b class="bad-text">You lost ${fmt(stake)} tokens.</b> Press Space to roll again.`;
         recent.add(roll.toFixed(2), win ? 'win' : 'lose');
         recent.setRight(`<b>${won}</b> won · <b>${lost}</b> lost`);
-        Nova.ui.toast(win ? `+${fmt(payout)} tokens` : `−${fmt(stake)} tokens`, win ? 'win' : 'lose');
         busy = false;
         bet.lock(false);
         handles.forEach((el) => el.classList.remove('locked'));

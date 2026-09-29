@@ -241,6 +241,7 @@
             sellAll.addEventListener('click', () => {
               items.forEach((x) => Nova.inventory.remove(x.s.uid));
               Nova.wallet.credit(round2(total));
+              Nova.sfx.coins(10);
               Nova.ui.toast(`Sold ${items.length} items for ${fmt(total)} tokens`, 'win');
               render(); drawAll();
             });
@@ -249,6 +250,7 @@
               sell.addEventListener('click', () => {
                 if (!Nova.inventory.remove(s.uid)) return;
                 Nova.wallet.credit(it.value);
+                Nova.sfx.coins(5);
                 Nova.ui.toast(`Sold ${it.name} for ${fmt(it.value)} tokens`, 'win');
                 render(); drawAll();
               });
@@ -265,6 +267,37 @@
       }
 
       /* the roll */
+      const pointer = ringSvg.querySelector('.ring-pointer');
+      const SPIN_MS = 4200;
+
+      // spin the ring with rAF so every tick mark that passes the pointer can click
+      function spinTo(target) {
+        const from = rot;
+        const t0 = performance.now();
+        let lastTick = Math.floor(-from / 6);
+        let alive = true;
+        shell.cleanup(() => { alive = false; });
+        const frame = (now) => {
+          if (!alive) return;
+          const k = Math.min(1, (now - t0) / SPIN_MS);
+          const e = 1 - Math.pow(1 - k, 4);
+          rot = from + (target - from) * e;
+          ringRot.style.transform = `rotate(${rot}deg)`;
+          const tick = Math.floor(-rot / 6);
+          if (tick !== lastTick) {
+            lastTick = tick;
+            Nova.sfx.spinTick();
+            if (!pointer.getAnimations().length) {
+              Nova.anim(pointer, [{ transform: 'translateX(-50%) rotate(0)' }, { transform: 'translateX(-50%) rotate(-22deg)' }, { transform: 'translateX(-50%) rotate(0)' }], { duration: 110 });
+            }
+          }
+          if (k < 1) requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+        // resolve on a timer so the result still settles if the tab is backgrounded
+        return Nova.sleep(SPIN_MS + 80).then(() => { rot = target; ringRot.style.transform = `rotate(${rot}deg)`; });
+      }
+
       async function upgrade() {
         if (busy || !chanceOk() || Nova.ui.betBlock(bet)) return;
         const stake = bet.get();
@@ -278,33 +311,50 @@
         [modeUnder, modeOver, invBtn].forEach((b) => (b.disabled = true));
         presetBtns.forEach((b) => (b.disabled = true));
         shop.querySelectorAll('button').forEach((b) => (b.disabled = true));
+        ringWrap.classList.remove('win', 'lose');
+        ringWrap.classList.add('spinning');
         centerLabel.textContent = 'Rolling';
+        status.textContent = `Spinning for ${item.emoji} ${item.name}…`;
+        Nova.sfx.bet();
+        Nova.sfx.whoosh(0.8);
 
         const roll = Nova.randInt(10000) / 100; // 0.00 – 99.99
         const win = under ? roll < chance : roll >= 100 - chance;
-        const base = Math.floor(rot / 360) * 360;
-        rot = base - 360 * 5 - roll * 3.6;
-        ringRot.style.transition = 'transform 3.6s cubic-bezier(.12,.6,.1,1)';
-        ringRot.style.transform = `rotate(${rot}deg)`;
-        await Nova.sleep(3700);
+        // normalise, then land so that `roll` sits under the pointer after 5 full turns
+        rot = ((rot % 360) + 360) % 360;
+        const end = rot - 360 * 5 - ((((rot + roll * 3.6) % 360) + 360) % 360);
+        await spinTo(end);
 
+        ringWrap.classList.remove('spinning');
+        ringWrap.classList.add(win ? 'win' : 'lose');
         centerLabel.textContent = win ? 'Upgraded!' : 'Rolled';
         centerValue.className = 'ring-value mono ' + (win ? 'good-text' : 'bad-text');
         centerValue.textContent = roll.toFixed(2);
+        Nova.ui.bump(centerValue, 1.2);
         if (win) {
           Nova.inventory.add(item.id);
+          Nova.sfx.cash(3);
+          Nova.fx.at(ringWrap, { count: 50, speed: 11, life: 1200 });
+          Nova.fx.confetti();
+          Nova.ui.bump(targetBox, 1.08);
+          shell.flash('win');
           status.innerHTML = `<b class="good-text">Upgrade!</b> ${item.emoji} ${item.name} (${fmt(item.value)}) is in your inventory.`;
-          Nova.ui.toast(`Won ${item.name} (${fmt(item.value)})`, 'win');
         } else {
+          Nova.sfx.lose();
+          Nova.fx.shake(ringWrap, 8);
+          shell.flash('lose');
           status.innerHTML = `<b class="bad-text">No luck.</b> Rolled ${roll.toFixed(2)} — you lost ${fmt(stake)} tokens.`;
-          Nova.ui.toast(`−${fmt(stake)} tokens`, 'lose');
         }
         busy = false;
         bet.lock(false);
         [modeUnder, modeOver, invBtn].forEach((b) => (b.disabled = false));
         presetBtns.forEach((b) => (b.disabled = false));
         // keep the result on screen a moment, then restore the chance readout
-        setTimeout(() => { if (!busy) drawRing(); }, 2600);
+        setTimeout(() => {
+          if (busy) return;
+          ringWrap.classList.remove('win', 'lose');
+          drawRing();
+        }, 2600);
         drawShop();
         drawGo();
         invBtn.innerHTML = Nova.icon('package', 14) + `<span>Inventory (${Nova.inventory.items.length})</span>`;

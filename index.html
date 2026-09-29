@@ -5,13 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NOVA – Minigames</title>
   <meta name="description" content="Play-money minigames: Mines, Coin Flip, Tower, Chicken, Plinko, Dice and Upgrader.">
+  <meta name="theme-color" content="#050408">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0712'/%3E%3Cpath d='M14 50V14h9l18 22V14h9v36h-9L23 28v22z' fill='%23c084fc'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- shared gradients for the gem / bomb art -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="gGem" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f5e8ff"/><stop offset=".45" stop-color="#c084fc"/><stop offset="1" stop-color="#6d28d9"/>
+      </linearGradient>
+      <radialGradient id="gBomb" cx=".35" cy=".3" r=".8">
+        <stop offset="0" stop-color="#5b5566"/><stop offset=".55" stop-color="#1f1b27"/><stop offset="1" stop-color="#0a080d"/>
+      </radialGradient>
+    </defs>
+  </svg>
+
   <div class="bg-glow" aria-hidden="true"></div>
 
   <header class="topbar">
@@ -21,6 +34,7 @@
     </a>
     <nav class="topnav" id="topnav"></nav>
     <div class="topbar-right">
+      <button class="icon-btn sound-btn" id="soundBtn" type="button" aria-label="Mute sound"></button>
       <div class="wallet-chip" title="Your play-money balance">
         <span id="chipIcon"></span>
         <span class="wallet-chip-label">Credit tokens</span>
@@ -39,6 +53,7 @@
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <script src="js/core.js"></script>
+  <script src="js/sound.js"></script>
   <script src="js/games/mines.js"></script>
   <script src="js/games/coinflip.js"></script>
   <script src="js/games/tower.js"></script>
