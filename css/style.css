@@ -590,3 +590,16 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 60px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- custom cursor ---------- */
+.has-cursor, .has-cursor * { cursor: none !important; }
+.cursor-dot, .cursor-glow { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; border-radius: 50%; opacity: 0; will-change: translate; transition: opacity .25s, scale .25s var(--spring), background .25s, box-shadow .25s, border-color .25s; }
+.cursor-dot { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #c084fc; box-shadow: 0 0 0 1.5px rgba(12, 6, 24, .7), 0 0 12px 2px rgba(168, 85, 247, .85); }
+.cursor-glow { width: 36px; height: 36px; margin: -18px 0 0 -18px; background: radial-gradient(circle, rgba(168, 85, 247, .22), transparent 70%); border: 1px solid rgba(192, 132, 252, .0); }
+.cursor-visible .cursor-dot, .cursor-visible .cursor-glow { opacity: 1; }
+.cursor-hover .cursor-dot { scale: 1.6; background: #fff; box-shadow: 0 0 0 1.5px rgba(76, 29, 149, .9), 0 0 14px 3px rgba(192, 132, 252, .95); }
+.cursor-hover .cursor-glow { scale: 1.35; border-color: rgba(192, 132, 252, .55); background: radial-gradient(circle, rgba(168, 85, 247, .16), transparent 70%); }
+.cursor-blocked .cursor-dot { scale: .8; background: #6b6479; box-shadow: none; }
+.cursor-blocked .cursor-glow { opacity: .3; }
+.cursor-down .cursor-dot { scale: .6; }
+.cursor-down .cursor-glow { scale: .8; }
