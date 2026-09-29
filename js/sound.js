@@ -186,6 +186,22 @@
       noise({ t: 0.02, dur: 0.3, gain: 0.2, type: 'highpass', f: 5000 });
       tone({ f: 110, to: 45, dur: 0.35, gain: 0.4 });
     },
+    // --- intro ---
+    riser(dur = 1.4) {
+      tone({ f: 70, to: 420, type: 'sawtooth', dur, gain: 0.05, filter: 900, a: dur * 0.9 });
+      noise({ dur, gain: 0.12, type: 'bandpass', f: 200, to: 4000, q: 0.8, a: dur * 0.9 });
+    },
+    impact() {
+      tone({ f: 72, to: 26, dur: 1.3, gain: 0.7 });
+      noise({ dur: 1.1, gain: 0.5, f: 3200, to: 60, a: 0.002 });
+      [72, 79, 84, 88, 91].forEach((n, i) => tone({ f: note(n), type: 'triangle', t: 0.02 + i * 0.015, dur: 1.5, gain: 0.05, a: 0.01 }));
+      noise({ t: 0.02, dur: 0.6, gain: 0.12, type: 'highpass', f: 6000 });
+    },
+    warp() {
+      noise({ dur: 0.9, gain: 0.35, type: 'bandpass', f: 300, to: 5000, q: 1, a: 0.5 });
+      tone({ f: 60, to: 260, dur: 0.9, gain: 0.2, a: 0.6 });
+    },
+    letter(i = 0) { tone({ f: note(79 + [0, 3, 7, 12][i % 4]), type: 'triangle', dur: 0.25, gain: 0.05 }); },
     // --- cards & chips ---
     card() {
       noise({ dur: 0.09, gain: 0.2, type: 'bandpass', f: 3200, to: 1400, q: 0.9, a: 0.004 });
@@ -259,6 +275,8 @@
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
     // how big a celebration a multiplier deserves
     level: (m) => (m >= 10 ? 3 : m >= 2.5 ? 2 : 1),
+    // true once the browser lets us make sound without waiting for a click
+    live: () => !settings.muted && init() && ctx.state === 'running',
   };
   Object.keys(S).forEach((k) => {
     api[k] = (...args) => {

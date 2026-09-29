@@ -11,6 +11,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    // hide the page until the intro has played (once per browser session, ?intro forces it)
+    try {
+      if (/[?&]intro\b/.test(location.search) ||
+          (!sessionStorage.getItem('nova.intro') && !matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        document.documentElement.classList.add('intro-pending');
+      }
+    } catch (e) { /* storage blocked: just show the page */ }
+  </script>
 </head>
 <body>
   <!-- shared gradients for the gem / bomb art -->
@@ -18,6 +27,9 @@
     <defs>
       <linearGradient id="gGem" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="#f5e8ff"/><stop offset=".45" stop-color="#c084fc"/><stop offset="1" stop-color="#6d28d9"/>
+      </linearGradient>
+      <linearGradient id="gLogo" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#e9d5ff"/><stop offset="1" stop-color="#a855f7"/>
       </linearGradient>
       <radialGradient id="gBomb" cx=".35" cy=".3" r=".8">
         <stop offset="0" stop-color="#5b5566"/><stop offset=".55" stop-color="#1f1b27"/><stop offset="1" stop-color="#0a080d"/>
@@ -47,7 +59,10 @@
 
   <footer class="footer">
     <p><strong>Play money only.</strong> Credit tokens have no real-world value and cannot be bought, sold or cashed out. This is a demo for entertainment.</p>
-    <button class="linklike" id="resetBtn" type="button">Reset balance &amp; inventory</button>
+    <span class="footer-links">
+      <a class="linklike" href="?intro">Replay intro</a>
+      <button class="linklike" id="resetBtn" type="button">Reset balance &amp; inventory</button>
+    </span>
   </footer>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -65,6 +80,7 @@
   <script src="js/games/slots.js"></script>
   <script src="js/games/blackjack.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/intro.js"></script>
   <script src="js/cursor.js"></script>
 </body>
 </html>
