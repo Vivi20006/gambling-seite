@@ -306,7 +306,7 @@
     const controls = h('div', { class: 'panel controls' });
     const side = h('aside', { class: 'side' }, balanceCard, controls);
 
-    const root = h('div', { class: 'game-page page-enter' },
+    const root = h('div', { class: 'game-page page-enter' + (game.wide ? ' wide' : '') },
       h('a', { class: 'back-link', href: '#/', html: Nova.icon('arrow-left', 16) + '<span>Back to Minigames</span>' }),
       h('div', { class: 'game-head' },
         h('div', { class: 'game-title' },

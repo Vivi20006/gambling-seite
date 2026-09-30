@@ -5,6 +5,7 @@
 
   /* decorative card art per game (CSS + inline SVG, no external assets) */
   const ART = {
+    bonbon: '<span class="art-float art-bb bomb"><b>2500x</b></span><span class="art-float slow art-bb bomb2"><b>100x</b></span><span class="art-bb lolly"></span>',
     blackjack: '<span class="art-bj"><span class="bjc a"><b>A</b><i>♠</i></span><span class="bjc b"><b>K</b><i>♥</i></span><span class="art-float bjchips"><i></i><i></i><i></i><i></i></span></span>',
     slots: '<span class="art-float art-candy a">🍭</span><span class="art-float slow art-candy b">🍬</span><span class="art-float art-candy c">💖</span><span class="art-candy d">🍩</span><span class="art-orb">25×</span>',
     mines: `<span class="art-float art-bomb">${Nova.art.bomb}</span><span class="art-gem-sm">${Nova.art.gem}</span><span class="art-tiles"></span>`,
@@ -16,6 +17,7 @@
     upgrader: '<span class="art-float art-upg">' + Nova.icon('chevrons-up', 84) + '</span>',
   };
   const BLURB = {
+    bonbon: 'Candy-land tumbling slot with rainbow and gold multiplier bombs up to 2500×. Buy Feature with 3 options and 4 Special Bets.',
     blackjack: 'Take on the dealer at a 3D felt table: hit, stand, double and split your way to 21. Blackjack pays 3 to 2, with Perfect Pairs and 21+3 side bets.',
     slots: 'A real 6×5 tumbling slot: match 8+ sweets anywhere, watch wins pop and new candy rain down. Land 4 lollipops for free spins with multiplier orbs up to 100×.',
     mines: 'Reveal tiles, avoid the mines, cash out before your luck runs out. Every gem raises the multiplier.',
@@ -26,7 +28,7 @@
     dice: 'Drag your win zone, roll, and see how high you can go. Smaller zone, bigger payout.',
     upgrader: 'Stake a few tokens for a shot at a much bigger item. Pick your odds and spin the ring.',
   };
-  const ORDER = ['slots', 'mines', 'blackjack', 'coinflip', 'tower', 'chicken', 'plinko', 'dice', 'upgrader'];
+  const ORDER = ['bonbon', 'slots', 'blackjack', 'mines', 'coinflip', 'tower', 'chicken', 'plinko', 'dice', 'upgrader'];
 
   /* topbar */
   document.getElementById('brandMark').innerHTML = Nova.logo();
