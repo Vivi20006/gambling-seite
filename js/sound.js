@@ -186,6 +186,14 @@
       noise({ t: 0.02, dur: 0.3, gain: 0.2, type: 'highpass', f: 5000 });
       tone({ f: 110, to: 45, dur: 0.35, gain: 0.4 });
     },
+    // --- crash ---
+    ignite() {
+      noise({ dur: 1.1, gain: 0.22, type: 'lowpass', f: 150, to: 1400, a: 0.7 });
+      tone({ f: 40, to: 120, type: 'sawtooth', dur: 1, gain: 0.06, filter: 400, a: 0.6 });
+    },
+    milestone(n = 0) {
+      [0, 4, 7].forEach((k, i) => tone({ f: note(76 + k + Math.min(n, 4) * 2), type: 'triangle', t: i * 0.05, dur: 0.22, gain: 0.05 }));
+    },
     // --- intro ---
     riser(dur = 1.4) {
       tone({ f: 70, to: 420, type: 'sawtooth', dur, gain: 0.05, filter: 900, a: dur * 0.9 });
@@ -275,6 +283,57 @@
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
     // how big a celebration a multiplier deserves
     level: (m) => (m >= 10 ? 3 : m >= 2.5 ? 2 : 1),
+    // continuous rocket engine rumble: set(k) with k in 0..1, stop() fades it out
+    engine() {
+      const off = { set() {}, stop() {} };
+      if (settings.muted || !init()) return off;
+      if (ctx.state === 'suspended') ctx.resume();
+      try {
+        const now = ctx.currentTime;
+        const src = ctx.createBufferSource();
+        src.buffer = noiseBuf;
+        src.loop = true;
+        const nf = ctx.createBiquadFilter();
+        nf.type = 'lowpass';
+        nf.frequency.value = 260;
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = 46;
+        const of = ctx.createBiquadFilter();
+        of.type = 'lowpass';
+        of.frequency.value = 200;
+        const og = ctx.createGain();
+        og.gain.value = 0.25;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.2, now + 0.35);
+        src.connect(nf); nf.connect(g);
+        osc.connect(of); of.connect(og); og.connect(g);
+        g.connect(master);
+        src.start(now, Math.random() * 0.5);
+        osc.start(now);
+        let stopped = false;
+        return {
+          set(k) {
+            if (stopped) return;
+            const t = ctx.currentTime;
+            nf.frequency.setTargetAtTime(260 + k * 1500, t, 0.15);
+            osc.frequency.setTargetAtTime(46 + k * 60, t, 0.15);
+            g.gain.setTargetAtTime(0.2 + k * 0.08, t, 0.15);
+          },
+          stop(fade = 0.25) {
+            if (stopped) return;
+            stopped = true;
+            const t = ctx.currentTime;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+            src.stop(t + fade + 0.05);
+            osc.stop(t + fade + 0.05);
+          },
+        };
+      } catch (e) { return off; }
+    },
     // true once the browser lets us make sound without waiting for a click
     live: () => !settings.muted && init() && ctx.state === 'running',
   };

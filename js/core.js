@@ -73,6 +73,13 @@
     repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/>',
     spade: '<path d="M5 9c-1.5 1.5-3 3.2-3 5.5A5.5 5.5 0 0 0 7.5 20c1.8 0 3-.5 4.5-2 1.5 1.5 2.7 2 4.5 2a5.5 5.5 0 0 0 5.5-5.5c0-2.3-1.5-4-3-5.5l-7-7-7 7Z"/><path d="M12 18v4"/>',
+    gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
+    rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+    'log-out': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+    user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    trending: '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
     flag: '<path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.3 2A6 6 0 0 0 19.6 3a1 1 0 0 1 1.4.9v10.2a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-7.3-2a6 6 0 0 0-4.7 2"/>',
   };
   Nova.icon = (name, size = 18) =>
@@ -88,55 +95,64 @@
     bomb: '<svg class="svg-bomb" viewBox="0 0 64 64" aria-hidden="true"><circle cx="30" cy="37" r="19" fill="url(#gBomb)" stroke="rgba(255,255,255,.14)"/><ellipse cx="23" cy="30" rx="6" ry="3.5" fill="rgba(255,255,255,.28)" transform="rotate(-35 23 30)"/><rect x="38" y="14" width="10" height="9" rx="2" fill="#3a3346" transform="rotate(40 43 18)"/><path d="M46 14c3-6 8-6 10-2" stroke="#f59e0b" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle class="spark" cx="56.5" cy="11" r="3.5" fill="#fde047"/></svg>',
   };
 
-  /* ---------- wallet ---------- */
-  const KEY = 'nova.save.v1';
-  const START_BALANCE = 1000;
-  const FREE_AMOUNT = 100;
-  let save;
-  try { save = JSON.parse(localStorage.getItem(KEY)); } catch (e) { save = null; }
-  if (!save || typeof save.balance !== 'number') save = { balance: START_BALANCE, inventory: [] };
-  if (!Array.isArray(save.inventory)) save.inventory = [];
+  /* ---------- wallet (bound to the signed-in account, see auth.js) ---------- */
+  const HOURLY_AMOUNT = 1000;
+  const HOURLY_MS = 60 * 60 * 1000;
+  let save = null; // the signed-in account record; null while signed out
+  let persist = () => {};
 
   const subs = new Set();
-  function persist() {
-    try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* storage unavailable */ }
-  }
-  function emit() { persist(); subs.forEach((fn) => fn()); }
+  function emit() { if (save) persist(); subs.forEach((fn) => fn()); }
 
   Nova.wallet = {
-    get balance() { return save.balance; },
-    freeAmount: FREE_AMOUNT,
+    get balance() { return save ? save.balance : 0; },
+    get signedIn() { return !!save; },
+    hourlyAmount: HOURLY_AMOUNT,
+    hourlyMs: HOURLY_MS,
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
-    canAfford(n) { return n >= 1 && n <= save.balance + 1e-9; },
+    canAfford(n) { return !!save && n >= 1 && n <= save.balance + 1e-9; },
     debit(n) {
       if (!this.canAfford(n)) return false;
       save.balance = Nova.round2(save.balance - n);
+      save.wagered = Nova.round2((save.wagered || 0) + n);
       emit();
       return true;
     },
     credit(n) {
+      if (!save) return;
       save.balance = Nova.round2(save.balance + n);
+      if (n > (save.bestWin || 0)) save.bestWin = Nova.round2(n);
       emit();
     },
-    claimFree() {
-      if (save.balance >= 1) return false;
-      save.balance = Nova.round2(save.balance + FREE_AMOUNT);
+    /* free coins: HOURLY_AMOUNT once per hour per account */
+    nextClaimAt() { return save ? (save.lastClaim || 0) + HOURLY_MS : Infinity; },
+    canClaim() { return !!save && Date.now() >= this.nextClaimAt(); },
+    claimHourly() {
+      if (!this.canClaim()) return false;
+      save.lastClaim = Date.now();
+      save.claims = (save.claims || 0) + 1;
+      save.balance = Nova.round2(save.balance + HOURLY_AMOUNT);
       emit();
       return true;
     },
-    reset() {
-      save = { balance: START_BALANCE, inventory: [] };
-      emit();
+    /* auth.js hands the wallet the account record and a function that saves it */
+    bind(record, persistFn) {
+      save = record;
+      persist = persistFn || (() => {});
+      if (save && !Array.isArray(save.inventory)) save.inventory = [];
+      subs.forEach((fn) => fn());
     },
   };
 
   Nova.inventory = {
-    get items() { return save.inventory.slice(); },
+    get items() { return save ? save.inventory.slice() : []; },
     add(itemId) {
+      if (!save) return;
       save.inventory.push({ uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), itemId });
       emit();
     },
     remove(uid) {
+      if (!save) return null;
       const i = save.inventory.findIndex((x) => x.uid === uid);
       if (i < 0) return null;
       const [it] = save.inventory.splice(i, 1);
@@ -144,6 +160,23 @@
       return it;
     },
   };
+
+  /* "mm:ss" until the next free claim */
+  Nova.fmtCountdown = function (ms) {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(s / 60);
+    return String(m).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  };
+
+  /* one shared 1 s ticker; entries drop out once their element has left the page */
+  const tickers = new Set();
+  setInterval(() => {
+    tickers.forEach((t) => {
+      if (t.el.isConnected) { t.seen = true; t.fn(); }
+      else if (t.seen) { tickers.delete(t); if (t.gone) t.gone(); }
+    });
+  }, 1000);
+  Nova.ui.everySecond = (el, fn, gone) => { const t = { el, fn, gone, seen: false }; tickers.add(t); return () => tickers.delete(t); };
 
   /* ---------- effects ---------- */
   Nova.fx = (function () {
@@ -274,6 +307,36 @@
     };
   };
 
+  /* Hourly free-coins button: "Claim 1,000" when ready, otherwise a live countdown */
+  Nova.ui.claimButton = function (cls = 'btn-ghost small', opts = {}) {
+    const btn = h('button', { class: 'claim-btn ' + cls, type: 'button' });
+    const amount = Nova.fmt(Nova.wallet.hourlyAmount);
+    const sync = () => {
+      const ready = Nova.wallet.canClaim();
+      const left = Nova.wallet.nextClaimAt() - Date.now();
+      btn.classList.toggle('ready', ready);
+      btn.disabled = !ready;
+      if (opts.compact) {
+        btn.innerHTML = Nova.icon('gift', 16) + `<span class="mono">${ready ? '+' + amount : Nova.fmtCountdown(left)}</span>`;
+        btn.title = ready ? `Claim ${amount} free coins` : `Next ${amount} free coins in ${Nova.fmtCountdown(left)}`;
+      } else {
+        btn.innerHTML = Nova.icon('gift', 16) + (ready
+          ? `<span>Claim ${amount} free coins</span>`
+          : `<span>Next ${amount} in <b class="mono">${Nova.fmtCountdown(left)}</b></span>`);
+      }
+    };
+    btn.addEventListener('click', () => {
+      if (!Nova.wallet.claimHourly()) return;
+      Nova.sfx.coins(10);
+      Nova.sfx.win(2);
+      Nova.fx.at(btn, { count: 46, speed: 10, colors: ['#fde047', '#facc15', '#ffffff', '#c084fc', '#f0abfc'] });
+      Nova.ui.toast(`+${amount} free coins — come back in an hour for more`, 'win');
+    });
+    sync();
+    Nova.ui.everySecond(btn, sync, Nova.wallet.subscribe(sync));
+    return btn;
+  };
+
   /* Game page shell: header, stage, side column with balance card */
   Nova.ui.shell = function (game) {
     const cleanups = [];
@@ -281,22 +344,13 @@
 
     const balanceValue = h('div', { class: 'balance-value mono' });
     const setBalance = Nova.ui.counter(balanceValue, Nova.wallet.balance);
-    const freeBtn = h('button', { class: 'btn-ghost small', type: 'button' }, `Claim ${FREE_AMOUNT} free tokens`);
-    freeBtn.addEventListener('click', () => {
-      if (!Nova.wallet.claimFree()) return;
-      Nova.sfx.coins(8);
-      Nova.fx.at(balanceValue, { count: 20 });
-      Nova.ui.toast(`+${FREE_AMOUNT} free tokens`, 'win');
-    });
-    const syncBalance = () => {
-      setBalance(Nova.wallet.balance);
-      freeBtn.hidden = Nova.wallet.balance >= 1;
-    };
+    const freeBtn = Nova.ui.claimButton('btn-ghost small claim-inline');
+    const syncBalance = () => setBalance(Nova.wallet.balance);
     syncBalance();
     cleanup(Nova.wallet.subscribe(syncBalance));
 
     const balanceCard = h('div', { class: 'panel balance-card' },
-      h('div', { class: 'balance-label', html: Nova.icon('wallet', 16) + '<span>Credit tokens</span>' }),
+      h('div', { class: 'balance-label', html: Nova.icon('wallet', 16) + '<span>Coins</span>' }),
       balanceValue,
       freeBtn);
 
@@ -307,7 +361,7 @@
     const side = h('aside', { class: 'side' }, balanceCard, controls);
 
     const root = h('div', { class: 'game-page page-enter' + (game.wide ? ' wide' : '') },
-      h('a', { class: 'back-link', href: '#/', html: Nova.icon('arrow-left', 16) + '<span>Back to Minigames</span>' }),
+      h('a', { class: 'back-link', href: '#/', html: Nova.icon('arrow-left', 16) + '<span>Back to lobby</span>' }),
       h('div', { class: 'game-head' },
         h('div', { class: 'game-title' },
           h('div', { class: 'game-icon', html: Nova.icon(game.icon, 26) }),
@@ -398,7 +452,7 @@
     let value = 1;
     let locked = false;
     const listeners = [];
-    const input = h('input', { class: 'bet-input mono', type: 'text', inputmode: 'decimal', value: '1', 'aria-label': 'Bet in tokens' });
+    const input = h('input', { class: 'bet-input mono', type: 'text', inputmode: 'decimal', value: '1', 'aria-label': 'Bet in coins' });
     const mk = (cls, label, fn, html) => {
       const b = h('button', { class: cls, type: 'button', 'aria-label': label, html }, html ? null : label);
       b.addEventListener('click', () => { if (!locked) fn(); });
@@ -431,7 +485,7 @@
     shell.cleanup(Nova.wallet.subscribe(sync));
 
     const root = h('div', { class: 'field' },
-      h('label', { class: 'field-label' }, 'Bet (tokens)'),
+      h('label', { class: 'field-label' }, 'Bet (coins)'),
       h('div', { class: 'bet-row' }, minus, input, plus),
       h('div', { class: 'bet-quick-row' }, half, dbl, max));
 
@@ -446,8 +500,9 @@
 
   /* State of the primary action button relative to the bet. Returns null if OK. */
   Nova.ui.betBlock = function (bet) {
-    if (Nova.wallet.balance < 1) return 'No credit tokens';
-    if (bet.get() > Nova.wallet.balance + 1e-9) return 'Not enough tokens';
+    if (!Nova.wallet.signedIn) return 'Log in to play';
+    if (Nova.wallet.balance < 1) return 'No coins';
+    if (bet.get() > Nova.wallet.balance + 1e-9) return 'Not enough coins';
     return null;
   };
 

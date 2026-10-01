@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NOVA – Minigames</title>
-  <meta name="description" content="Play-money minigames: Bonbon Blast 2500 and Candy Burst slots, Blackjack, Mines, Coin Flip, Tower, Chicken, Plinko, Dice and Upgrader.">
+  <title>NOVA – Free play-money casino</title>
+  <meta name="description" content="Free play-money casino: sign in with Google or Discord, claim 1,000 coins every hour and play Crash, Bonbon Blast 2500, Candy Burst, Blackjack, Mines, Coin Flip, Tower, Chicken, Plinko, Dice and Upgrader.">
   <meta name="theme-color" content="#050408">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0712'/%3E%3Cpath d='M14 50V14h9l18 22V14h9v36h-9L23 28v22z' fill='%23c084fc'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,6 +31,12 @@
       <linearGradient id="gLogo" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#e9d5ff"/><stop offset="1" stop-color="#a855f7"/>
       </linearGradient>
+      <linearGradient id="gRocket" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#ddd6ea"/><stop offset="1" stop-color="#8b819e"/>
+      </linearGradient>
+      <linearGradient id="gFlame" x1="1" y1="0" x2="0" y2="0">
+        <stop offset="0" stop-color="#fff7d6"/><stop offset=".3" stop-color="#fde047"/><stop offset=".65" stop-color="#f97316"/><stop offset="1" stop-color="#ef4444" stop-opacity="0"/>
+      </linearGradient>
       <radialGradient id="gBomb" cx=".35" cy=".3" r=".8">
         <stop offset="0" stop-color="#5b5566"/><stop offset=".55" stop-color="#1f1b27"/><stop offset="1" stop-color="#0a080d"/>
       </radialGradient>
@@ -47,28 +53,26 @@
     <nav class="topnav" id="topnav"></nav>
     <div class="topbar-right">
       <button class="icon-btn sound-btn" id="soundBtn" type="button" aria-label="Mute sound"></button>
-      <div class="wallet-chip" title="Your play-money balance">
-        <span id="chipIcon"></span>
-        <span class="wallet-chip-label">Credit tokens</span>
-        <strong id="chipBalance" class="mono">0</strong>
-      </div>
+      <div class="account" id="account"></div>
     </div>
   </header>
 
   <main id="app"></main>
 
   <footer class="footer">
-    <p><strong>Play money only.</strong> Credit tokens have no real-world value and cannot be bought, sold or cashed out. This is a demo for entertainment.</p>
+    <p><strong>Play money only.</strong> Coins have no real-world value and cannot be bought, sold or cashed out. This is a demo for entertainment.</p>
     <span class="footer-links">
       <a class="linklike" href="?intro">Replay intro</a>
-      <button class="linklike" id="resetBtn" type="button">Reset balance &amp; inventory</button>
     </span>
   </footer>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
+  <script src="js/config.js"></script>
   <script src="js/core.js"></script>
   <script src="js/sound.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/games/crash.js"></script>
   <script src="js/games/mines.js"></script>
   <script src="js/games/coinflip.js"></script>
   <script src="js/games/tower.js"></script>

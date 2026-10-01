@@ -29,7 +29,7 @@
       let fsPlayed = 0;
       let fsTotal = 0; // bonus win so far, in bets
       let fsBet = 0;
-      let pending = 0; // tokens of the current spin not yet credited
+      let pending = 0; // coins of the current spin not yet credited
       let cells = []; // cells[c][r] = { x, el }, r = 0 is the top row
       let buyArmed = false;
       const timers = [];
@@ -81,8 +81,8 @@
         buyBtn.disabled = !can;
         buyBtn.classList.toggle('confirm', buyArmed && can);
         buyBtn.innerHTML = buyArmed && can
-          ? `<b>Confirm purchase?</b><span class="mono">${fmt(price)} tokens</span>`
-          : `<b>Buy free spins</b><span class="mono">${E.BUY_PRICE}× · ${fmt(price)} tokens</span>`;
+          ? `<b>Confirm purchase?</b><span class="mono">${fmt(price)} coins</span>`
+          : `<b>Buy free spins</b><span class="mono">${E.BUY_PRICE}× · ${fmt(price)} coins</span>`;
       }
       bet.on(() => { buyArmed = false; syncBuy(); });
       shell.cleanup(Nova.wallet.subscribe(syncBuy));
@@ -396,7 +396,7 @@
           ...s.pay.map((p) => h('td', { class: 'mono' }, fmt(round2(p * b))))));
         const box = h('div', { class: 'modal paytable', role: 'dialog', 'aria-label': 'Paytable' },
           h('div', { class: 'modal-head' }, h('h3', {}, 'Paytable'), closeBtn),
-          h('p', { class: 'muted small' }, `Payouts for your current bet of ${fmt(b)} tokens.`),
+          h('p', { class: 'muted small' }, `Payouts for your current bet of ${fmt(b)} coins.`),
           h('table', { class: 'pt-table' },
             h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '8–9'), h('th', {}, '10–11'), h('th', {}, '12+'))),
             h('tbody', {}, rows)),
@@ -452,7 +452,7 @@
           fsLeft = 0;
           if (units > 0) {
             Nova.wallet.credit(round2(units * fsBet));
-            Nova.ui.toast(`Candy Burst bonus finished: +${fmt(round2(units * fsBet))} tokens`, 'win');
+            Nova.ui.toast(`Candy Burst bonus finished: +${fmt(round2(units * fsBet))} coins`, 'win');
           }
         }
       });

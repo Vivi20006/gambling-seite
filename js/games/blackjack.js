@@ -249,7 +249,7 @@
       const rackBtns = [];
       const rack = h('div', { class: 'rack' });
       CHIPS.forEach((ch) => {
-        const b = h('button', { class: 'rack-chip', type: 'button', style: { '--c': ch.c, '--t': ch.t || '#fff' }, 'aria-label': `${ch.v} token chip` }, h('span', {}, chipLabel(ch.v)));
+        const b = h('button', { class: 'rack-chip', type: 'button', style: { '--c': ch.c, '--t': ch.t || '#fff' }, 'aria-label': `${ch.v} coin chip` }, h('span', {}, chipLabel(ch.v)));
         b.addEventListener('click', () => { chipSel = ch.v; drawRack(); addChip('main'); });
         rackBtns.push([ch.v, b]);
         rack.append(b);
@@ -314,7 +314,7 @@
         rowPP.textContent = fmt(bets.pp);
         rowT3.textContent = fmt(bets.t3);
         rowTotal.textContent = fmt(betTotal());
-        const block = bets.main < 1 ? 'Add a chip to bet' : betTotal() > Nova.wallet.balance + 1e-9 ? 'Not enough tokens' : null;
+        const block = bets.main < 1 ? 'Add a chip to bet' : betTotal() > Nova.wallet.balance + 1e-9 ? 'Not enough coins' : null;
         dealBtn.disabled = busy || !!block;
         dealBtn.textContent = block || `Deal · ${fmt(betTotal())}`;
         clearBtn.disabled = busy || betTotal() === 0;
@@ -330,7 +330,7 @@
         insText.textContent = 'The dealer shows an ace. Insurance costs half your bet and pays 2 to 1 if the dealer has blackjack.';
         const again = lastBets ? lastBets.main + lastBets.pp + lastBets.t3 : 0;
         againBtn.disabled = busy || !again || again > Nova.wallet.balance + 1e-9;
-        againBtn.textContent = again > Nova.wallet.balance + 1e-9 ? 'Not enough tokens' : `Rebet & deal · ${fmt(again)}`;
+        againBtn.textContent = again > Nova.wallet.balance + 1e-9 ? 'Not enough coins' : `Rebet & deal · ${fmt(again)}`;
         [mainCircle, ppCircle, t3Circle].forEach((c) => c.classList.toggle('live', betting && !busy));
         hands.forEach((hd, k) => hd.badge.classList.toggle('active', phase === 'player' && k === active));
       }

@@ -585,7 +585,7 @@
           fsLeft = 0;
           if (units > 0) {
             Nova.wallet.credit(round2(units * fsBet));
-            Nova.ui.toast(`Bonbon Blast bonus finished: +${fmt(round2(units * fsBet))} tokens`, 'win');
+            Nova.ui.toast(`Bonbon Blast bonus finished: +${fmt(round2(units * fsBet))} coins`, 'win');
           }
         }
       });

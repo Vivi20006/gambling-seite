@@ -1,4 +1,4 @@
-/* Upgrader – stake tokens for a shot at a bigger item from the Credit Shop */
+/* Upgrader – stake coins for a shot at a bigger item from the Credit Shop */
 (function () {
   const { h, fmt, round2, clamp } = Nova;
   const EDGE = 0.96;
@@ -242,7 +242,7 @@
               items.forEach((x) => Nova.inventory.remove(x.s.uid));
               Nova.wallet.credit(round2(total));
               Nova.sfx.coins(10);
-              Nova.ui.toast(`Sold ${items.length} items for ${fmt(total)} tokens`, 'win');
+              Nova.ui.toast(`Sold ${items.length} items for ${fmt(total)} coins`, 'win');
               render(); drawAll();
             });
             box.append(sellAll, h('div', { class: 'inv-list' }, items.map(({ s, it }) => {
@@ -251,7 +251,7 @@
                 if (!Nova.inventory.remove(s.uid)) return;
                 Nova.wallet.credit(it.value);
                 Nova.sfx.coins(5);
-                Nova.ui.toast(`Sold ${it.name} for ${fmt(it.value)} tokens`, 'win');
+                Nova.ui.toast(`Sold ${it.name} for ${fmt(it.value)} coins`, 'win');
                 render(); drawAll();
               });
               return h('div', { class: `inv-item ${tier(it.value)}` },
@@ -343,7 +343,7 @@
           Nova.sfx.lose();
           Nova.fx.shake(ringWrap, 8);
           shell.flash('lose');
-          status.innerHTML = `<b class="bad-text">No luck.</b> Rolled ${roll.toFixed(2)} — you lost ${fmt(stake)} tokens.`;
+          status.innerHTML = `<b class="bad-text">No luck.</b> Rolled ${roll.toFixed(2)} — you lost ${fmt(stake)} coins.`;
         }
         busy = false;
         bet.lock(false);

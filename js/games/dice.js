@@ -306,8 +306,8 @@
           Nova.sfx.lose();
         }
         status.innerHTML = win
-          ? `<b class="good-text">You won ${fmt(payout)} tokens</b> at ${m.toFixed(2)}×.`
-          : `<b class="bad-text">You lost ${fmt(stake)} tokens.</b> Press Space to roll again.`;
+          ? `<b class="good-text">You won ${fmt(payout)} coins</b> at ${m.toFixed(2)}×.`
+          : `<b class="bad-text">You lost ${fmt(stake)} coins.</b> Press Space to roll again.`;
         recent.add(roll.toFixed(2), win ? 'win' : 'lose');
         recent.setRight(`<b>${won}</b> won · <b>${lost}</b> lost`);
         busy = false;

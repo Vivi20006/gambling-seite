@@ -79,7 +79,7 @@
         winPill.innerHTML = streak > 1
           ? `<span class="streak">${streak}× streak</span>`
           : `Win <b class="good-text">${fmt(round2(bet.get() * PAYOUT))}</b>`;
-        payout.lastChild.innerHTML = `${fmt(round2(bet.get() * PAYOUT))} <small>tokens</small>`;
+        payout.lastChild.innerHTML = `${fmt(round2(bet.get() * PAYOUT))} <small>coins</small>`;
         Object.entries(sideBtns).forEach(([k, b]) => b.classList.toggle('active', k === call));
       }
 
@@ -132,13 +132,13 @@
           Nova.sfx.win(streak >= 3 ? 2 : 1);
           Nova.fx.at(wrap, { count: 40, speed: 9, life: 1000 });
           shell.flash('win');
-          status.innerHTML = `<b class="good-text">${name(result)}!</b> You won ${fmt(win)} tokens.`;
+          status.innerHTML = `<b class="good-text">${name(result)}!</b> You won ${fmt(win)} coins.`;
         } else {
           streak = 0;
           arena.classList.add('lose');
           Nova.sfx.lose();
           shell.flash('lose');
-          status.innerHTML = `<b class="bad-text">${name(result)}.</b> You lost ${fmt(stake)} tokens.`;
+          status.innerHTML = `<b class="bad-text">${name(result)}.</b> You lost ${fmt(stake)} coins.`;
         }
         recent.add(mini(result) + `<span>${won ? '+' + fmt(win - stake) : '−' + fmt(stake)}</span>`, (won ? 'win' : 'lose') + ' coin-chip', true);
         busy = false;
